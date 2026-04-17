@@ -6,7 +6,7 @@ function M.setup()
     end
 
     local c = {
-        bg = "NONE",
+        bg = "#282a36",
         selection = "#44475a",
         red = "#ff5555",
         orange = "#ffb86c",
@@ -21,12 +21,9 @@ function M.setup()
         fg_dim = "#c8cee0",
     }
     local c_match = "#4d5b85"
-    -- 核心：确保这些基础组的背景为 NONE
-    hl("Normal", { fg = c.fg, bg = c.bg })             -- 主编辑区透明
-    hl("NormalNC", { fg = c.fg, bg = c.bg })           -- 非当前窗口透明
-    hl("SignColumn", { bg = c.bg })                    -- 侧边栏（行号左侧）透明
-    hl("FoldColumn", { fg = c.comment, bg = c.bg })
-    hl("EndOfBuffer", { fg = c.selection, bg = c.bg }) -- 文件末尾波浪线处透明    hl("LspReferenceText", { bg = c_match, underline = true })
+
+
+    hl("LspReferenceText", { bg = c_match, underline = true })
     hl("LspReferenceRead", { bg = c_match, underline = true })
     hl("LspReferenceWrite", { bg = c_match, underline = true })
 
