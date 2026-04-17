@@ -56,3 +56,14 @@ map("n", "<leader>cr", "<cmd>CMakeRun<cr>", { desc = "CMake 运行 (Run)" })
 map("n", "<leader>cd", "<cmd>CMakeDebug<cr>", { desc = "CMake 调试 (Debug)" })
 map("n", "<leader>ct", "<cmd>CMakeSelectTarget<cr>", { desc = "选择构建目标" })
 map("n", "<leader>ck", "<cmd>CMakeStop<cr>", { desc = "停止当前任务" })
+
+-- 平滑滚动快捷键 (Neoscroll)
+-- 使用插件默认的函数来实现平滑翻页
+map("n", "<C-u>", function() require('neoscroll').ctrl_u({ duration = 250 }) end, { desc = "平滑向上翻页" })
+map("n", "<C-d>", function() require('neoscroll').ctrl_d({ duration = 250 }) end, { desc = "平滑向下翻页" })
+map("n", "<C-b>", function() require('neoscroll').ctrl_b({ duration = 450 }) end, { desc = "平滑向上翻整屏" })
+map("n", "<C-f>", function() require('neoscroll').ctrl_f({ duration = 450 }) end, { desc = "平滑向下翻整屏" })
+-- 平滑对齐
+map("n", "zt", function() require('neoscroll').zt({ duration = 150 }) end, { desc = "平滑将当前行置顶" })
+map("n", "zz", function() require('neoscroll').zz({ duration = 150 }) end, { desc = "平滑将当前行居中" })
+map("n", "zb", function() require('neoscroll').zb({ duration = 150 }) end, { desc = "平滑将当前行置底" })

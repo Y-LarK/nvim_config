@@ -1,4 +1,4 @@
-local opt = vim.opt
+local opt          = vim.opt
 
 -- 系统剪贴板
 opt.clipboard      = "unnamedplus"
@@ -31,18 +31,20 @@ opt.updatetime     = 250
 opt.timeoutlen     = 300
 opt.termguicolors  = true
 
-vim.opt.cursorline = true -- 必须开启，CursorLineNr 才会生效
+opt.cursorline     = true -- 必须开启，CursorLineNr 才会生效
 
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = "markdown",
-  callback = function()
-    local opt_local = vim.opt_local
-    opt_local.wrap = true
-    opt_local.linebreak = true
-    opt_local.breakindent = true
-    opt_local.spell = true
-    opt_local.spelllang = { "en_us", "cjk" }
-    opt_local.textwidth = 0
-    opt_local.colorcolumn = ""
-  end,
+    pattern = "markdown",
+    callback = function()
+        local opt_local = vim.opt_local
+        opt_local.wrap = true
+        opt_local.linebreak = true
+        opt_local.breakindent = true
+        opt_local.spell = true
+        opt_local.spelllang = { "en_us", "cjk" }
+        opt_local.textwidth = 0
+        opt_local.colorcolumn = ""
+    end,
 })
+
+opt.guicursor = "n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50"
