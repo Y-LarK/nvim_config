@@ -69,7 +69,7 @@ return {
             -- 🔍 3. 过滤（更干净）
             filters = {
                 dotfiles = false,
-                git_ignored = true,
+                git_ignored = false,
             },
 
             -- ⚡ 4. Git 状态（必须开）
