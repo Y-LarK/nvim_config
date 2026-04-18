@@ -22,7 +22,6 @@ return {
                 })
             end
 
-            -- ── clangd 专用：从 cmake-tools 获取编译数据库路径 ──────────────
             local function clangd_on_new_config(new_config, new_cwd)
                 local ok_cmake, cmake = pcall(require, "cmake-tools")
                 if ok_cmake then
@@ -32,16 +31,21 @@ return {
 
             local servers = {
                 clangd = {
-                    cmd = {
-                        "clangd",
-                        "--background-index",
-                        "--clang-tidy",
-                        "--header-insertion=iwyu",
-                        "--completion-style=detailed",
-                        "--function-arg-placeholders=1",
-                    },
-                    -- cmake-tools 会动态修改 compilationDatabasePath
-                    -- 通过 on_new_config 注入，这里保留一个合理的静态后备值
+                    cmd = (function()
+                        if os.getenv("CLANGD_REMOTE") == "1" then
+                            local port = os.getenv("CLANGD_PORT") or "9527"
+                            return { "socat", "-", "TCP:localhost:" .. port }
+                        end
+                        return {
+                            "clangd",
+                            "--background-index",
+                            "--clang-tidy",
+                            "--header-insertion=iwyu",
+                            "--completion-style=detailed",
+                            "--function-arg-placeholders=1",
+                        }
+                    end)(),
+                    root_markers = { ".clangd", "compile_commands.json", "CMakeLists.txt", ".git" },
                     init_options = {
                         compilationDatabasePath = "build",
                     },
@@ -80,28 +84,22 @@ return {
                 config.capabilities = capabilities
 
                 if vim.lsp.config and vim.lsp.enable then
-                    -- Neovim 0.11+ 原生 LSP 路径
-                    -- on_new_config 是 lspconfig 的概念，原生路径需改用 before_init
                     if config.on_new_config then
                         local orig_on_new_config = config.on_new_config
-                        -- 转换为原生 LSP 的 before_init 钩子
                         config.before_init = function(params, init_config)
-                            -- 构造一个兼容 lspconfig on_new_config 签名的临时对象
                             local fake_config = init_config
                             local cwd = params.rootPath or vim.fn.getcwd()
                             orig_on_new_config(fake_config, cwd)
                         end
-                        config.on_new_config = nil -- 原生路径不识别此字段
+                        config.on_new_config = nil
                     end
                     vim.lsp.config(server, config)
                     vim.lsp.enable(server)
                 else
-                    -- lspconfig 路径（Neovim < 0.11）
                     lspconfig[server].setup(config)
                 end
             end
 
-            -- ── navic 自动挂载 ────────────────────────────────────────────
             if ok_navic then
                 vim.api.nvim_create_autocmd("LspAttach", {
                     group = vim.api.nvim_create_augroup("UserNavicAttach", { clear = true }),
@@ -114,7 +112,6 @@ return {
                 })
             end
 
-            -- ── 诊断样式 ──────────────────────────────────────────────────
             vim.diagnostic.config({
                 virtual_text = { prefix = "●" },
                 severity_sort = true,
