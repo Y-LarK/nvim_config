@@ -70,6 +70,21 @@ return {
                 marksman = {
                     filetypes = { "markdown" },
                 },
+                yamlls = {
+                    settings = {
+                        yaml = {
+                            validate = true,
+                            hover = true,
+                            completion = true,
+                            format = { enable = true },
+                            schemas = {
+                                ["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*",
+                                ["https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json"] =
+                                "docker-compose*.yml",
+                            },
+                        },
+                    },
+                },
             }
 
             if vim.fn.executable("cmake-language-server") == 1 then
