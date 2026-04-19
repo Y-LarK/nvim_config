@@ -54,13 +54,13 @@ return {
                         },
 
                         git = {
-                            unstaged = "●",
-                            staged = "✔",
-                            unmerged = "",
-                            renamed = "➜",
-                            untracked = "★",
-                            deleted = "✖",
-                            ignored = "◌",
+                            unstaged = "󰄱", -- 选框（待办/未暂存）
+                            staged = "", -- 打钩（已暂存）
+                            unmerged = "", -- 分支合并符号
+                            renamed = "󰁔", -- 箭头（重命名）
+                            untracked = "", -- 加号（新文件，非常直观）
+                            deleted = "", -- 减号（删除）
+                            ignored = "◌", -- 忽略（保持原样或使用 ）
                         },
                     },
                 },

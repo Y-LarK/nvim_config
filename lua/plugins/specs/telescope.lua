@@ -23,16 +23,24 @@ return {
                     file_ignore_patterns = {
                         "node_modules/",
                         "%.git/",
-                        "build/",
                         "dist/",
+                        "%.o$",   -- 目标文件
+                        "%.a$",   -- 静态库
+                        "%.so$",  -- 动态库
+                        "%.out$", -- 默认编译输出
                     },
                 },
 
                 -- ✔ 必须放这里
                 pickers = {
                     find_files = {
-                        hidden = true,
-                        no_ignore = true,
+                        -- 使用 fd 代替默认搜索
+                        find_command = {
+                            "fd",
+                            "--type", "f", -- 只找文件 (file)
+                            "--hidden",    -- 搜索隐藏文件 (如 .env)
+                            "--no-ignore-vcs",
+                        },
                     },
                 },
             })

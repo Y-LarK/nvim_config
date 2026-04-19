@@ -1,4 +1,4 @@
--- 设置 Leader 
+-- 设置 Leader
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
@@ -10,12 +10,12 @@ vim.cmd([[
 
 -- 额外的 C++ 文件类型映射
 vim.filetype.add({
-  extension = {
-    cc = "cpp",
-    cxx = "cpp",
-    hpp = "cpp",
-    hxx = "cpp",
-  },
+    extension = {
+        cc = "cpp",
+        cxx = "cpp",
+        hpp = "cpp",
+        hxx = "cpp",
+    },
 })
 
 require("config.options")
