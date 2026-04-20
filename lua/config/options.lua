@@ -1,5 +1,6 @@
 local opt          = vim.opt
 
+vim.o.winborder    = "rounded"
 -- 系统剪贴板
 opt.clipboard      = "unnamedplus"
 
@@ -30,7 +31,6 @@ opt.backup         = false
 opt.updatetime     = 250
 opt.timeoutlen     = 300
 opt.termguicolors  = true
-
 opt.cursorline     = true -- 必须开启，CursorLineNr 才会生效
 
 vim.api.nvim_create_autocmd("FileType", {

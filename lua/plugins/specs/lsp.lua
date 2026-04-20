@@ -22,7 +22,7 @@ return {
                 })
             end
 
-            local function clangd_on_new_config(new_config, new_cwd)
+            local function clangd_on_new_config(new_config, _)
                 local ok_cmake, cmake = pcall(require, "cmake-tools")
                 if ok_cmake then
                     cmake.clangd_on_new_config(new_config)
@@ -70,6 +70,7 @@ return {
                 marksman = {
                     filetypes = { "markdown" },
                 },
+
                 yamlls = {
                     settings = {
                         yaml = {
@@ -115,6 +116,7 @@ return {
                 end
             end
 
+            -- navic attach
             if ok_navic then
                 vim.api.nvim_create_autocmd("LspAttach", {
                     group = vim.api.nvim_create_augroup("UserNavicAttach", { clear = true }),
@@ -127,10 +129,42 @@ return {
                 })
             end
 
+            -- 诊断配置
             vim.diagnostic.config({
                 virtual_text = { prefix = "●" },
                 severity_sort = true,
                 float = { border = "rounded" },
+            })
+
+            -- 光标停留自动显示 hover（类似 VSCode）
+            vim.o.updatetime = 800
+
+            vim.api.nvim_create_autocmd("CursorHold", {
+                group = vim.api.nvim_create_augroup("UserLspHover", { clear = true }),
+                callback = function()
+                    -- hover 浮窗的 filetype 是 markdown，已打开则跳过避免重复
+                    for _, win in ipairs(vim.api.nvim_list_wins()) do
+                        local cfg = vim.api.nvim_win_get_config(win)
+                        if cfg.relative ~= "" then
+                            local buf = vim.api.nvim_win_get_buf(win)
+                            if vim.bo[buf].filetype == "markdown" then
+                                return
+                            end
+                        end
+                    end
+                    local clients = vim.lsp.get_clients({ bufnr = 0 })
+                    if #clients == 0 then return end
+                    -- 0.12 新 API：make_position_params 需要传 winnr 和 encoding
+                    local client = clients[1]
+                    local cur_win = vim.api.nvim_get_current_win()
+                    local params = vim.lsp.util.make_position_params(cur_win, client.offset_encoding)
+                    client:request("textDocument/hover", params, function(err, result)
+                        if err or not result or not result.contents then
+                            return -- 没有内容时静默，不弹通知
+                        end
+                        vim.lsp.handlers.hover(err, result, { client_id = client.id }, {})
+                    end)
+                end,
             })
         end,
     },

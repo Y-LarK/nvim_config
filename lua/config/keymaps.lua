@@ -67,3 +67,11 @@ map("n", "<C-f>", function() require('neoscroll').ctrl_f({ duration = 450 }) end
 map("n", "zt", function() require('neoscroll').zt({ duration = 150 }) end, { desc = "平滑将当前行置顶" })
 map("n", "zz", function() require('neoscroll').zz({ duration = 150 }) end, { desc = "平滑将当前行居中" })
 map("n", "zb", function() require('neoscroll').zb({ duration = 150 }) end, { desc = "平滑将当前行置底" })
+-- LSP
+map("n", "K", vim.lsp.buf.hover, { desc = "LSP 悬浮文档" })
+map("n", "gd", vim.lsp.buf.definition, { desc = "跳转定义" })
+map("n", "gr", vim.lsp.buf.references, { desc = "查看引用" })
+map("n", "gi", vim.lsp.buf.implementation, { desc = "跳转实现" })
+map("n", "<leader>rn", vim.lsp.buf.rename, { desc = "重命名" })
+map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
+map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })
