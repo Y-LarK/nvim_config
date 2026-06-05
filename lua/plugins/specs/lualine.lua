@@ -1,7 +1,7 @@
 return {
 
     "nvim-lualine/lualine.nvim",
-
+    cond = not vim.g.vscode,
     lazy = false, -- 状态栏建议不开启懒加载，确保启动即显示
 
     dependencies = {

@@ -2,6 +2,7 @@ return {
     -- 1. Nvim-Notify: 保持不变
     {
         "rcarriga/nvim-notify",
+        cond = not vim.g.vscode,
         opts = {
             timeout = 3000,
             stages = "fade",
@@ -18,6 +19,7 @@ return {
     -- 2. Noice.nvim: 深度美化视图
     {
         "folke/noice.nvim",
+        cond = not vim.g.vscode,
         event = "VeryLazy",
         dependencies = {
             "MunifTanjim/nui.nvim",
@@ -120,6 +122,7 @@ return {
     -- 3. Bufferline: 顶部标签栏
     {
         "akinsho/bufferline.nvim",
+        cond = not vim.g.vscode,
         version = "*",
         dependencies = "nvim-tree/nvim-web-devicons",
         cmd = {

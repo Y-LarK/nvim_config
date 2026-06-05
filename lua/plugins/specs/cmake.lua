@@ -1,5 +1,6 @@
 return {
     "Civitasv/cmake-tools.nvim",
+    cond = not vim.g.vscode,
     lazy = false,
     dependencies = { "nvim-lua/plenary.nvim" },
     opts = {
@@ -13,9 +14,9 @@ return {
         cmake_build_directory = function() -- 构建目录（可写死或动态生成）
             local osys = require("cmake-tools.osys")
             if osys.iswin32 then
-                return "out\\${variant:buildType}"
+                return "build\\${variant:buildType}"
             end
-            return "out/${variant:buildType}"
+            return "build/${variant:buildType}"
         end,
         cmake_soft_link_compile_commands = false, -- 软链 compile_commands.json 到项目根
         cmake_compile_commands_from_lsp = true,   -- 由 LSP on_new_config 管理时设为 true

@@ -1,6 +1,7 @@
 return {
   {
     "folke/trouble.nvim",
+    cond = not vim.g.vscode,
     dependencies = { "nvim-tree/nvim-web-devicons" },
     opts = {}, -- 使用默认配置即可
     keys = {

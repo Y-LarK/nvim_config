@@ -1,6 +1,7 @@
 return {
     {
         "folke/flash.nvim",
+        vscode = true,
         event = "VeryLazy",
         opts = {
             labels = "asdfghjklqwertyuiopzxcvbnm", -- 自定义标签顺序，建议用最顺手的键

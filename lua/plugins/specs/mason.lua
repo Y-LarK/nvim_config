@@ -1,6 +1,7 @@
 return {
   {
     "williamboman/mason.nvim",
+    cond = not vim.g.vscode,
     build = ":MasonUpdate",
     lazy = false,
     opts = {

@@ -1,5 +1,6 @@
 return {
   "windwp/nvim-autopairs",
+  cond = not vim.g.vscode,
   event = "InsertEnter", -- 仅在进入插入模式时加载，极致性能
   dependencies = { "hrsh7th/nvim-cmp" }, -- 配合补全插件实现回车确认
   opts = {

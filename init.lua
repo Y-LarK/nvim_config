@@ -19,5 +19,17 @@ vim.filetype.add({
 })
 
 require("config.options")
-require("config.keymaps")
-require("plugins")
+
+if vim.g.vscode then
+    require("plugins")
+    require("config.keymaps_vscode")
+    vim.opt.cmdheight = 100000    -- 消息行数不超过这个值就不弹出
+    vim.opt.shortmess:append("q")
+    vim.opt.shortmess:append("s") -- 静默搜索消息
+    vim.opt.shortmess:append("S") -- 不显示搜索计数
+    vim.opt.shortmess:append("qsSF")
+else
+    require("plugins")
+    require("config.keymaps")
+    require("config.options")
+end

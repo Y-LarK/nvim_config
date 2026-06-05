@@ -1,5 +1,6 @@
 return {
     "karb94/neoscroll.nvim",
+    cond = not vim.g.vscode,
 
     config = function()
         require('neoscroll').setup({

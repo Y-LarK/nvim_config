@@ -1,6 +1,7 @@
 return {
     {
         name = "gradient-theme",
+        cond = not vim.g.vscode,
         dir = vim.fn.stdpath("config") .. "/lua/plugins/local/gradient-theme",
         lazy = false,
         priority = 1000,

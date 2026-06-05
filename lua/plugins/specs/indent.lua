@@ -1,6 +1,7 @@
 return {
   {
     "lukas-reineke/indent-blankline.nvim",
+    cond = not vim.g.vscode,
     event = { "BufReadPost", "BufNewFile" },
     main = "ibl", -- 新版本需要指定入口
     dependencies = { "nvim-treesitter/nvim-treesitter" }, -- 必须依赖 TS
