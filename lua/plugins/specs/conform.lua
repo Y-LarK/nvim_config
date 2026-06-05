@@ -8,6 +8,7 @@ return {
       -- C/C++
       cpp = { "clang-format" },
       c = { "clang-format" },
+      cuda = { "clang-format" },
       -- Lua (Neovim 配置的核心)
       lua = { "stylua" },
       -- Python (如果你以后用到)
