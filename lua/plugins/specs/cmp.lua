@@ -90,17 +90,33 @@ return {
                     ["<C-e>"] = cmp.mapping.abort(),
                 }),
                 sources = cmp.config.sources({
-                    { name = "nvim_lsp", priority = 1000, max_item_count = 5 },
-                    { name = "luasnip",  priority = 750,  max_item_count = 5 },
-                    { name = "buffer",   priority = 500,  max_item_count = 5 },
+                    { name = "nvim_lsp", priority = 1000, max_item_count = 10 },
+                    { name = "luasnip",  priority = 750,  max_item_count = 10 },
+                    { name = "buffer",   priority = 500,  max_item_count = 8 },
                     { name = "path",     priority = 250,  max_item_count = 5 },
                 }),
             })
 
             -- --- 命令行模式映射 ---
+            -- 注意：cmdline 模式必须用 { c = fn } 包装，裸函数默认只对 insert 模式生效
+            local cmdline_next = cmp.mapping(function(fallback)
+                if cmp.visible() then
+                    cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
+                else
+                    fallback() -- 补全列表未显示时，fallback 到 <Down> 原行为（历史记录）
+                end
+            end, { "c" })
+            local cmdline_prev = cmp.mapping(function(fallback)
+                if cmp.visible() then
+                    cmp.select_prev_item({ behavior = cmp.SelectBehavior.Select })
+                else
+                    fallback() -- 补全列表未显示时，fallback 到 <Up> 原行为（历史记录）
+                end
+            end, { "c" })
+
             local cmdline_mappings = cmp.mapping.preset.cmdline({
-                ["<Down>"] = select_next,
-                ["<Up>"] = select_prev,
+                ["<Down>"] = cmdline_next,
+                ["<Up>"] = cmdline_prev,
                 ["<Tab>"] = cmp.mapping(function(fallback)
                     if cmp.visible() then
                         cmp.confirm({ select = true })
@@ -111,6 +127,10 @@ return {
                 ["<CR>"] = cmp.mapping.confirm({ select = false }),
                 ["<C-e>"] = cmp.mapping.abort(),
             })
+
+            -- C-n / C-p 映射到 Up / Down，用于选择命令历史（补全未显示时生效）
+            vim.keymap.set("c", "<C-n>", "<Down>", { remap = true })
+            vim.keymap.set("c", "<C-p>", "<Up>",   { remap = true })
 
             cmp.setup.cmdline({ '/', '?' }, {
                 mapping = cmdline_mappings,
