@@ -2,182 +2,99 @@ return {
 
     "nvim-lualine/lualine.nvim",
     cond = not vim.g.vscode,
-    lazy = false, -- 状态栏建议不开启懒加载，确保启动即显示
+    lazy = false,
 
     dependencies = {
-
         "nvim-tree/nvim-web-devicons",
-
         "SmiteshP/nvim-navic",
-
     },
 
     config = function()
-        -- 安全导入插件
-
         local ok_navic, navic = pcall(require, "nvim-navic")
-
         local ok_cmake, cmake = pcall(require, "cmake-tools")
 
+        -- 固定主题，所有文件类型一致
+        local colors = {
+            purple  = "#cfacff",
+            green   = "#66ff8d",
+            orange  = "#ffc880",
+            red     = "#ff6b6b",
+            blue    = "#8296d4",
+            dark    = "#1e2030",
+            white   = "#ffffff",
+            comment = "#b8c0d8",
+            gray_bg = "#3a3d4e",
+            dim_bg  = "#252838",
+        }
 
+        local theme = {
+            normal   = { a = { fg = colors.dark, bg = colors.purple }, b = { fg = colors.purple, bg = colors.gray_bg }, c = { fg = colors.comment, bg = colors.dim_bg }, x = { fg = colors.comment, bg = colors.dim_bg }, y = { fg = colors.purple, bg = colors.gray_bg }, z = { fg = colors.dark, bg = colors.purple } },
+            insert   = { a = { fg = colors.dark, bg = colors.blue }, b = { fg = colors.blue, bg = colors.gray_bg }, c = { fg = colors.comment, bg = colors.dim_bg }, x = { fg = colors.comment, bg = colors.dim_bg }, y = { fg = colors.blue, bg = colors.gray_bg }, z = { fg = colors.dark, bg = colors.blue } },
+            visual   = { a = { fg = colors.dark, bg = colors.orange }, b = { fg = colors.orange, bg = colors.gray_bg }, c = { fg = colors.comment, bg = colors.dim_bg }, x = { fg = colors.comment, bg = colors.dim_bg }, y = { fg = colors.orange, bg = colors.gray_bg }, z = { fg = colors.dark, bg = colors.orange } },
+            replace  = { a = { fg = colors.dark, bg = colors.red }, b = { fg = colors.red, bg = colors.gray_bg }, c = { fg = colors.comment, bg = colors.dim_bg }, x = { fg = colors.comment, bg = colors.dim_bg }, y = { fg = colors.red, bg = colors.gray_bg }, z = { fg = colors.dark, bg = colors.red } },
+            command  = { a = { fg = colors.dark, bg = colors.white }, b = { fg = colors.white, bg = colors.gray_bg }, c = { fg = colors.comment, bg = colors.dim_bg }, x = { fg = colors.comment, bg = colors.dim_bg }, y = { fg = colors.white, bg = colors.gray_bg }, z = { fg = colors.dark, bg = colors.white } },
+            inactive = { a = { fg = colors.comment, bg = colors.dark }, b = { fg = colors.comment, bg = colors.dark }, c = { fg = colors.comment, bg = colors.dark }, x = { fg = colors.comment, bg = colors.dark }, y = { fg = colors.comment, bg = colors.dark }, z = { fg = colors.comment, bg = colors.dark } },
+        }
 
         require("lualine").setup({
-
             options = {
-
-                theme                = "auto",
-
-                -- 【修改点】设置三角分割符
-
+                theme                = theme,
                 component_separators = { left = "", right = "" },
-
                 section_separators   = { left = "", right = "" },
-
-                globalstatus         = true, -- 开启全局状态栏，所有窗口共用一个底部栏
-
+                globalstatus         = true,
                 disabled_filetypes   = { statusline = { "dashboard", "alpha", "NvimTree" } },
-
             },
 
             sections = {
-
-                -- 左侧：模式 (只显示首字母)
-
                 lualine_a = {
-
                     { "mode", fmt = function(str) return str:sub(1, 1) end },
-
                 },
-
-
-
-                -- 左侧：Git 信息
-
                 lualine_b = {
-
                     "branch",
-
-                    {
-
-                        "diff",
-
-                        symbols = { added = " ", modified = " ", removed = " " },
-
-                    },
-
+                    { "diff", symbols = { added = " ", modified = " ", removed = " " } },
                 },
-
-
-
-                -- 中间：文件名 + Navic 代码层级导航
-
                 lualine_c = {
-
+                    { "filename", path = 1, symbols = { modified = " ●", readonly = " 🔒", unnamed = "[No Name]" } },
                     {
-
-                        "filename",
-
-                        path = 1, -- 1 为显示相对路径，更能看清文件位置
-
-                        symbols = { modified = " ●", readonly = " 🔒", unnamed = "[No Name]" },
-
+                        function() return navic.get_location() end,
+                        cond = function() return ok_navic and navic.is_available() and navic.get_location() ~= "" end,
                     },
-
-                    {
-
-                        function()
-                            return navic.get_location()
-                        end,
-
-                        cond = function()
-                            return ok_navic and navic.is_available() and navic.get_location() ~= ""
-                        end,
-
-                        color = { fg = "#abb2bf" }, -- 稍微淡化颜色，突出文件名
-
-                    },
-
                 },
-
-
-
-                -- 右侧：CMake 状态 + 诊断信息 + 类型
-
                 lualine_x = {
-
-                    -- CMake-Tools 状态集成
-
                     {
-
+                        function()
+                            local wc = vim.fn.wordcount()
+                            return "W:" .. wc.words .. " C:" .. wc.chars
+                        end,
+                        cond = function() return vim.bo.filetype == "markdown" end,
+                    },
+                    {
                         function()
                             local bt = cmake.get_build_type() or "Debug"
-
                             local lt = cmake.get_launch_target() or "N/A"
-
                             return " " .. bt .. " 󰄛 " .. lt
                         end,
-
-                        cond = function()
-                            return ok_cmake and cmake.is_cmake_project()
-                        end,
-
-                        color = { fg = "#98c379" }, -- 成功色
-
+                        cond = function() return ok_cmake and cmake.is_cmake_project() end,
+                        color = { fg = colors.green },
                     },
-
-                    -- 诊断信息
-
-                    {
-
-                        "diagnostics",
-
-                        sources = { "nvim_diagnostic" },
-
-                        symbols = { error = " ", warn = " ", info = " ", hint = "󰛩 " },
-
-                    },
-
+                    { "diagnostics", sources = { "nvim_diagnostic" }, symbols = { error = " ", warn = " ", info = " ", hint = "󰛩 " } },
                     "filesize",
-
                     "filetype",
-
                 },
-
-
-
-                -- 右侧：进度百分比
-
                 lualine_y = { "progress" },
-
-
-
-                -- 右侧：行列位置
-
                 lualine_z = {
-
-                    { "location", separator = { right = "" }, left_padding = 2 },
-
+                    { "location", left_padding = 1, right_padding = 1 },
                 },
-
             },
 
             inactive_sections = {
-
                 lualine_a = {},
-
                 lualine_b = {},
-
                 lualine_c = { "filename" },
-
                 lualine_x = { "location" },
-
                 lualine_y = {},
-
                 lualine_z = {},
-
             },
-
         })
     end,
-
 }

@@ -1,5 +1,7 @@
 local opt          = vim.opt
 
+opt.mouse          = "a"          -- 全模式启用鼠标
+
 vim.o.winborder    = "rounded"
 -- 系统剪贴板
 opt.clipboard      = "unnamedplus"
@@ -54,6 +56,17 @@ vim.api.nvim_create_autocmd("FileType", {
         vim.opt_local.shiftwidth = 2
         vim.opt_local.tabstop = 2
         vim.opt_local.softtabstop = 2
+    end,
+})
+
+-- Makefile 必须用真正的 Tab 缩进，否则会报 "missing separator"
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = "make",
+    callback = function()
+        vim.opt_local.expandtab = false
+        vim.opt_local.tabstop = 8
+        vim.opt_local.shiftwidth = 8
+        vim.opt_local.softtabstop = 0
     end,
 })
 opt.guicursor = "n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50"

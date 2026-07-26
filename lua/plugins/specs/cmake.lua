@@ -2,7 +2,7 @@ return {
     "Civitasv/cmake-tools.nvim",
     cond = not vim.g.vscode,
     lazy = false,
-    dependencies = { "nvim-lua/plenary.nvim" },
+    dependencies = { "nvim-lua/plenary.nvim", "mfussenegger/nvim-dap" },
     opts = {
         cmake_command = "cmake",         -- cmake 可执行路径
         ctest_command = "ctest",         -- ctest 可执行路径
@@ -11,15 +11,14 @@ return {
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
         },
         cmake_build_options = {},          -- cmake --build 时附加参数
-        cmake_build_directory = function() -- 构建目录（可写死或动态生成）
-            local osys = require("cmake-tools.osys")
-            if osys.iswin32 then
-                return "build\\${variant:buildType}"
-            end
-            return "build/${variant:buildType}"
-        end,
-        cmake_soft_link_compile_commands = false, -- 软链 compile_commands.json 到项目根
-        cmake_compile_commands_from_lsp = true,   -- 由 LSP on_new_config 管理时设为 true
+        cmake_build_directory = "build", -- 构建目录，直接放在项目根目录下的 build/
+        cmake_compile_commands_options = {
+            action = "lsp", -- soft_link | copy | lsp | none（lsp=不给根目录创建软链/副本）
+            target = vim.loop.cwd,
+        },
+        cmake_dap_configuration = {             -- DAP 调试配置（覆盖默认 codelldb）
+            type = "lldb",
+        },
         cmake_kits_path = nil,                    -- cmake-kits.json 路径，nil 使用全局默认
         cmake_variants_message = {
             short = { show = true },              -- 状态栏显示短名
