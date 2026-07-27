@@ -17,7 +17,7 @@ return {
 
             if ok_navic then
                 navic.setup({
-                    highlight = true,
+                    highlight = false,
                     separator = " > ",
                     depth_limit = 5,
                 })
@@ -129,6 +129,17 @@ return {
                     end,
                 })
             end
+
+            -- 内联提示（参数名、类型推断）
+            vim.api.nvim_create_autocmd("LspAttach", {
+                group = vim.api.nvim_create_augroup("UserInlayHints", { clear = true }),
+                callback = function(args)
+                    local client = vim.lsp.get_client_by_id(args.data.client_id)
+                    if client and client.server_capabilities.inlayHintProvider then
+                        vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
+                    end
+                end,
+            })
 
             -- 诊断配置
             vim.diagnostic.config({

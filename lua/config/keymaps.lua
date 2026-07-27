@@ -30,9 +30,13 @@ map("n", "<leader>fb", "<cmd>Telescope buffers<cr>", { desc = "查找已打开�
 map("n", "<leader>fh", "<cmd>Telescope help_tags<cr>", { desc = "查找帮助文档" })
 map("n", "<leader>fs", "<cmd>Telescope lsp_document_symbols<cr>", { desc = "查找当前文件符号" })
 
+-- 分屏
+map("n", "<leader>sv", "<C-w>v", { desc = "左右分屏" })
+map("n", "<leader>sh", "<C-w>s", { desc = "上下分屏" })
+
 -- 快速窗口跳转
 map("n", "<C-h>", "<C-w>h", { desc = "跳转到左侧窗口" })
-map("n", "<C-j>", "<C-w>j", { desc = "跳转到底部窗口" }) -- 这一行就是你要的
+map("n", "<C-j>", "<C-w>j", { desc = "跳转到底部窗口" })
 map("n", "<C-k>", "<C-w>k", { desc = "跳转到顶部窗口" })
 map("n", "<C-l>", "<C-w>l", { desc = "跳转到右侧窗口" })
 
@@ -71,9 +75,23 @@ map("n", "zz", function() require('neoscroll').zz({ duration = 150 }) end, { des
 map("n", "zb", function() require('neoscroll').zb({ duration = 150 }) end, { desc = "平滑将当前行置底" })
 -- LSP
 map("n", "K", vim.lsp.buf.hover, { desc = "LSP 悬浮文档" })
-map("n", "gd", vim.lsp.buf.definition, { desc = "跳转定义" })
+local gd_state = {} -- 记录上次 gd 跳转来源
+map("n", "gd", function()
+    local cur_winnr = vim.api.nvim_get_current_win()
+    local cur_buf = vim.api.nvim_get_current_buf()
+    local cur_pos = vim.api.nvim_win_get_cursor(cur_winnr)
+    if gd_state.buf == cur_buf and gd_state.winnr == cur_winnr
+        and gd_state.pos[1] == cur_pos[1] and gd_state.pos[2] == cur_pos[2] then
+        -- 第二次 gd → 跳定义(.c 函数体)
+        gd_state = {}
+        vim.lsp.buf.definition()
+    else
+        -- 第一次 gd → 跳声明(.h)
+        gd_state = { buf = cur_buf, winnr = cur_winnr, pos = cur_pos }
+        vim.lsp.buf.declaration()
+    end
+end, { desc = "跳转声明/定义 (gd→.h声明, 再次gd→.c定义)" })
 map("n", "gr", vim.lsp.buf.references, { desc = "查看引用" })
-map("n", "gi", vim.lsp.buf.implementation, { desc = "跳转实现" })
 map("n", "<leader>rn", vim.lsp.buf.rename, { desc = "重命名" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
 map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })

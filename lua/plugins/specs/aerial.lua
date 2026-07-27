@@ -13,6 +13,7 @@ return {
                 max_width = { 40, 0.2 },
                 min_width = 20,
                 placement = "edge",
+                default_direction = "left",
                 preserve_equality = false,
             },
             filter_kind = false,

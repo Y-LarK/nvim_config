@@ -58,6 +58,7 @@ return {
                     {
                         function() return navic.get_location() end,
                         cond = function() return ok_navic and navic.is_available() and navic.get_location() ~= "" end,
+                        color = { fg = colors.comment, bg = colors.dim_bg },
                     },
                 },
                 lualine_x = {

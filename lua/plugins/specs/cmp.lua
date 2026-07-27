@@ -33,6 +33,11 @@ return {
 
             -- --- 核心配置 ---
             cmp.setup({
+                snippet = {
+                    expand = function(args)
+                        luasnip.lsp_expand(args.body)
+                    end,
+                },
                 experimental = { ghost_text = { hl_group = "CmpGhostText" } },
                 preselect = cmp.PreselectMode.None,
                 completion = {
