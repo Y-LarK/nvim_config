@@ -25,10 +25,14 @@ return {
                         "node_modules/",
                         "%.git/",
                         "dist/",
-                        "%.o$",   -- 目标文件
-                        "%.a$",   -- 静态库
-                        "%.so$",  -- 动态库
-                        "%.out$", -- 默认编译输出
+                        "build/",              -- CMake 构建目录
+                        "%.o$",                -- 目标文件
+                        "%.a$",                -- 静态库
+                        "%.so$",               -- 动态库
+                        "%.out$",              -- 默认编译输出
+                        "%.d$",                -- 依赖文件
+                        "CMakeFiles/",         -- CMake 内部
+                        "CMakeCache%.txt$",    -- CMake 缓存
                     },
                 },
 

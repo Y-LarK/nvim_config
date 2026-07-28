@@ -7,6 +7,9 @@ return {
     config = function()
         require("nvim-tree").setup({
 
+            -- 🎛️ 0. 弹窗式输入（避免创建文件夹 E21 错误）
+            select_prompts = true,
+
             -- 🌳 1. 视图（更现代）
             view = {
                 width = 32,
@@ -97,6 +100,15 @@ return {
                     quit_on_open = false,
                     resize_window = true,
                 },
+            },
+
+            -- 📁 7. 目录劫持
+            hijack_directories = {
+                enable = false,
+            },
+
+            notify = {
+                threshold = vim.log.levels.WARN,
             },
 
             -- ✨ 7. 更新跟随当前文件

@@ -94,8 +94,91 @@ end, { desc = "跳转声明/定义 (gd→.h声明, 再次gd→.c定义)" })
 map("n", "gr", vim.lsp.buf.references, { desc = "查看引用" })
 map("n", "<leader>rn", vim.lsp.buf.rename, { desc = "重命名" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
+map("n", "<leader>dc", function()
+    -- 在函数/类/结构体上方生成 /** ... */ Doxygen 注释
+    local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+    local line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1] or ""
+    -- 解析：函数 / 类 / 结构体 / 枚举
+    local fname = line:match("%S+%s+([%w_]+)%s*%(") or line:match("([%w_]+)%s*%(")
+    local args, ret, is_class = {}, ""
+    if fname then
+        -- 函数
+        for a in (line:match("%((.-)%)") or ""):gmatch("[^,]+") do
+            local name = a:match("(%w+)%s*$") or ""
+            if name ~= "" and name ~= "void" then table.insert(args, name) end
+        end
+        ret = line:match("^(%S+)%s") or "void"
+    else
+        -- 类 / 结构体 / 枚举
+        fname = line:match("class%s+([%w_]+)") or line:match("struct%s+([%w_]+)") or line:match("enum%s+([%w_]+)")
+        is_class = fname ~= nil
+    end
+    if not fname then
+        -- 不是函数/类 → 行尾添加 ///< 注释
+        vim.cmd("normal! A ///<  ")
+        vim.cmd("startinsert")
+        return
+    end
+    -- 构造注释
+    local comment = { "/**" }
+    table.insert(comment, " * @brief  ")
+    if is_class then
+        -- 类 / 结构体 / 枚举 模板
+        local kind = line:match("(class)") or line:match("(struct)") or line:match("(enum)") or "class"
+        comment = {
+            "/**",
+            " * @" .. kind .. " " .. fname,
+            " * @brief  ",
+            " * @note  ",
+            " */",
+        }
+        vim.api.nvim_buf_set_lines(0, row, row, false, comment)
+        vim.api.nvim_win_set_cursor(0, { row + 3, 10 })
+        vim.cmd("startinsert!")
+        return
+    end
+    for _, a in ipairs(args) do
+        table.insert(comment, " * @param " .. a .. "  ")
+    end
+    if ret and ret ~= "void" then
+        table.insert(comment, " * @return  ")
+    end
+    table.insert(comment, " */")
+    -- 插入到定义行上方
+    vim.api.nvim_buf_set_lines(0, row, row, false, comment)
+    vim.api.nvim_win_set_cursor(0, { row + 2, 11 })
+    vim.cmd("startinsert!")
+end, { desc = "生成 Doxygen 注释" })
 map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })
 
--- 一键注释/取消注释 (空格 + /)
-map("n", "<leader>/", "gcc", { remap = true, desc = "切换单行注释" })
-map("v", "<leader>/", "gc", { remap = true, desc = "切换选区注释" })
+-- 统一注释：normal → //   visual → /* */
+map("n", "<leader>/", "gcc", { remap = true, desc = "切换行注释 //" })
+map("v", "<leader>/", "gb",  { remap = true, desc = "切换块注释 /* */" })
+
+-- 头文件 ↔ 源文件切换
+map("n", "<leader>ha", function()
+    local dir = vim.fn.expand("%:p:h")
+    local base = vim.fn.expand("%:t:r")
+    local ext = vim.fn.expand("%:e")
+    -- .c/.cpp/.cc → .h/.hpp
+    local targets = {}
+    if ext:match("^c") then
+        targets = { base .. ".h", base .. ".hpp" }
+    elseif ext:match("^h") then
+        targets = { base .. ".c", base .. ".cpp", base .. ".cc" }
+    else
+        return
+    end
+    local search = { dir, dir .. "/../include", dir .. "/../src", dir .. "/include", dir .. "/src" }
+    for _, sdir in ipairs(search) do
+        for _, tgt in ipairs(targets) do
+            local path = sdir .. "/" .. tgt
+            if vim.fn.filereadable(path) == 1 then
+                vim.cmd("e " .. path)
+                return
+            end
+        end
+    end
+    -- 找不到就新建同级文件
+    vim.cmd("e " .. dir .. "/" .. targets[1])
+end, { desc = "头文件↔源文件切换" })

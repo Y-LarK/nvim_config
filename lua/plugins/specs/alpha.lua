@@ -53,8 +53,6 @@ return {
             dashboard.button("w", "󰈬  Search Text", "<cmd>Telescope live_grep<CR>"),
 
             dashboard.button("r", "󰄉  Recent Files", "<cmd>Telescope oldfiles<CR>"),
-            dashboard.button("p", "  Projects", "<cmd>Telescope projects<CR>"),
-
             dashboard.button("e", "󰙅  Explorer", "<cmd>NvimTreeToggle<CR>"),
 
             dashboard.button("c", "  Config", "<cmd>e $MYVIMRC<CR>"),
