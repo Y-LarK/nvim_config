@@ -92,7 +92,6 @@ map("n", "gd", function()
     end
 end, { desc = "跳转声明/定义 (gd→.h声明, 再次gd→.c定义)" })
 map("n", "gr", vim.lsp.buf.references, { desc = "查看引用" })
-map("n", "<leader>rn", vim.lsp.buf.rename, { desc = "重命名" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
 map("n", "<leader>dc", function()
     -- 在函数/类/结构体上方生成 /** ... */ Doxygen 注释
@@ -153,7 +152,18 @@ map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })
 
 -- 统一注释：normal → //   visual → /* */
 map("n", "<leader>/", "gcc", { remap = true, desc = "切换行注释 //" })
-map("v", "<leader>/", "gb",  { remap = true, desc = "切换块注释 /* */" })
+map("v", "<leader>/", "gb", { remap = true, desc = "切换块注释 /* */" })
+
+-- Markdown 锚点链接跳转
+map("n", "<leader>mj", function()
+    local line = vim.api.nvim_get_current_line()
+    local anchor = line:match("%[.-%]%((#.-)%)")
+    if not anchor then return end
+    local text = anchor:sub(2):gsub("%-", " ")
+    -- 匹配以 # 开头的标题行，精确匹配
+    local pattern = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
+    vim.fn.search(pattern, "w")
+end, { desc = "跳转 Markdown 锚点" })
 
 -- 头文件 ↔ 源文件切换
 map("n", "<leader>ha", function()

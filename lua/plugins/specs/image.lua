@@ -1,8 +1,11 @@
 return {
     {
-        "3rd/image.nvim",
+        "Y-LarK/obsidian-image-nvim",
+        name = "image.nvim",
         lazy = false,
+        pin = true,
         build = false,
+        rocks = { "image.nvim", "magick" },
         opts = {
             backend = "kitty",
             processor = "magick_cli",
@@ -15,7 +18,7 @@ return {
                     filetypes = { "markdown", "vimwiki" },
                 },
             },
-            max_width_window_percentage = 50,
+            max_width_window_percentage = 90,
             max_height_window_percentage = 30,
         },
     },

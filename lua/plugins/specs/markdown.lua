@@ -11,7 +11,17 @@ return {
             restart_highlighter = true,
             render_modes = { "n", "c" },
             anti_conceal = {
-                enabled = false, -- 关闭"光标行显示源码"的行为
+                enabled = true,
+                above = 0,
+                below = 0,
+                ignore = {
+                    head_background = { "n", "c" },
+                    head_border = { "n", "c" },
+                    head_icon = { "n", "c" },
+                    dash = { "n", "c" },
+                    code_background = { "n", "c" },
+                    code_border = { "n", "c" },
+                },
             },
             file_types = { "markdown" },
             latex = {

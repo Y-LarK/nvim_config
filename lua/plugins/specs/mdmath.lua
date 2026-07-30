@@ -7,8 +7,8 @@ return {
         opts = {
             filetypes = { "markdown" },
             foreground = "Normal",
-            anticonceal = false,
-            hide_on_insert = true,
+            anticonceal = true,
+            hide_on_insert = false,
             dynamic = true,
             update_interval = 400,
         },
