@@ -217,7 +217,7 @@ function M.setup()
     hl("RenderMarkdownUnchecked",    { fg = c.orange })                -- 未勾选
     hl("RenderMarkdownLink",         { fg = c.cyan, underline = true, bold = true }) -- 链接
     hl("RenderMarkdownLinkTitle",    { fg = c.purple, italic = true }) -- 链接标题
-    hl("RenderMarkdownTableHead",    { fg = c.bg, bg = c.purple, bold = true }) -- 表头
+    hl("RenderMarkdownTableHead",    { fg = c.cyan, bold = true }) -- 表头
     hl("RenderMarkdownTableRow",     { fg = c.fg })                    -- 表格行
     hl("RenderMarkdownMath",         { fg = c.pink, bold = true })     -- LaTeX 公式
     hl("RenderMarkdownDash",         { fg = c.purple, bold = true })   -- 分隔线 ---

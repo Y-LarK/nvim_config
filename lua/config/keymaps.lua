@@ -154,16 +154,43 @@ map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })
 map("n", "<leader>/", "gcc", { remap = true, desc = "切换行注释 //" })
 map("v", "<leader>/", "gb", { remap = true, desc = "切换块注释 /* */" })
 
--- Markdown 锚点链接跳转
+-- Markdown 链接跳转：锚点跳转 / URL 浏览器打开
 map("n", "<leader>mj", function()
+    -- 1) treesitter 精确获取光标下的 link_destination
+    local node = vim.treesitter.get_node()
+    if node then
+        while node do
+            if node:type() == "link_destination" then
+                local url = vim.treesitter.get_node_text(node, 0)
+                if url:match("^https?://") or url:match("^www%.") then
+                    vim.fn.jobstart({ "xdg-open", url }, { detach = true })
+                    return
+                elseif url:match("^#") then
+                    local text = url:sub(2):gsub("%-", " ")
+                    local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
+                    vim.cmd("normal! m'")               -- 记入跳转列表，Ctrl-o 可回
+                    vim.fn.search(pat, "w")
+                    return
+                end
+            end
+            node = node:parent()
+        end
+    end
+    -- 2) 降级：行内正则（光标不在 treesitter 节点时也能用）
     local line = vim.api.nvim_get_current_line()
+    local ext_url = line:match("%[.-%]%((https?://[^%)]+)%)")
+    if ext_url then
+        vim.fn.jobstart({ "xdg-open", ext_url }, { detach = true })
+        return
+    end
     local anchor = line:match("%[.-%]%((#.-)%)")
-    if not anchor then return end
-    local text = anchor:sub(2):gsub("%-", " ")
-    -- 匹配以 # 开头的标题行，精确匹配
-    local pattern = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
-    vim.fn.search(pattern, "w")
-end, { desc = "跳转 Markdown 锚点" })
+    if anchor then
+        local text = anchor:sub(2):gsub("%-", " ")
+        local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
+        vim.cmd("normal! m'")                           -- 记入跳转列表，Ctrl-o 可回
+        vim.fn.search(pat, "w")
+    end
+end, { desc = "跳转 Markdown 锚点 / 打开链接" })
 
 -- 头文件 ↔ 源文件切换
 map("n", "<leader>ha", function()

@@ -3,8 +3,9 @@ return {
         "Thiago4532/mdmath.nvim",
         dependencies = { "nvim-treesitter/nvim-treesitter" },
         build = ":MdMath build",
-        ft = { "markdown" },
+        event = { "BufReadPre *.md", "BufNewFile *.md" },
         opts = {
+            enabled = true,
             filetypes = { "markdown" },
             foreground = "Normal",
             anticonceal = true,
