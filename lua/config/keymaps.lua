@@ -192,3 +192,8 @@ map("n", "<leader>ha", function()
     -- 找不到就新建同级文件
     vim.cmd("e " .. dir .. "/" .. targets[1])
 end, { desc = "头文件↔源文件切换" })
+
+-- Markdown 折行开关（大表格时关掉看对齐）
+map("n", "<leader>tw", function()
+    vim.wo.wrap = not vim.wo.wrap
+end, { desc = "切换折行" })
