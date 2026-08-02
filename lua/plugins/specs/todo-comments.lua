@@ -16,7 +16,7 @@ return {
                 TEST = { icon = "⏣ ", color = "test", alt = { "TESTING", "PASSED", "FAILED" } },
             },
             highlight = {
-                keyword = "wide",
+                keyword = "bg",
                 pattern = [[(KEYWORDS)\s*:?]],
             },
             search = { command = "rg", pattern = [[\b(KEYWORDS)\b]] },

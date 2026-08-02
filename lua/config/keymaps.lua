@@ -224,3 +224,27 @@ end, { desc = "头文件↔源文件切换" })
 map("n", "<leader>tw", function()
     vim.wo.wrap = not vim.wo.wrap
 end, { desc = "切换折行" })
+
+-- Markdown 自动生成目录 (TOC)
+map("n", "<leader>tc", function()
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    local toc = { "<!--toc:start-->", "" }
+    for _, line in ipairs(lines) do
+        local level, text = line:match("^(#+)%s+(.+)$")
+        if level and #level <= 6 then
+            local indent = string.rep("  ", #level - 1)
+            -- GitHub 风格 anchor：小写、空格/标点转 -
+            local anchor = text:lower()
+                :gsub("[%p%c]", "-")
+                :gsub("%s+", "-")
+                :gsub("%-+", "-")
+                :gsub("^%-", "")
+                :gsub("%-$", "")
+            table.insert(toc, indent .. "- [" .. text .. "](#" .. anchor .. ")")
+        end
+    end
+    table.insert(toc, "")
+    table.insert(toc, "<!--toc:end-->")
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    vim.api.nvim_buf_set_lines(0, row, row, false, toc)
+end, { desc = "生成 Markdown 目录 (TOC)" })

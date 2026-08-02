@@ -89,7 +89,8 @@ function M.setup()
         callback = function()
             vim.fn.clearmatches()
             -- Doxygen 标签
-            local tags = [[@\%(param\|tparam\|return\|returns\|brief\|details\|note\|warning\|see\|ref\|throws\|exception\|author\|date\|version\|since\|deprecated\|todo\|test\|code\|endcode\|class\|struct\|enum\|fn\|var\|def\|file\|namespace\|ingroup\)\>]]
+            local tags =
+            [[@\%(param\|tparam\|return\|returns\|brief\|details\|note\|warning\|see\|ref\|throws\|exception\|author\|date\|version\|since\|deprecated\|todo\|test\|code\|endcode\|class\|struct\|enum\|fn\|var\|def\|file\|namespace\|ingroup\)\>]]
             vim.fn.matchadd("DoxygenTag", tags, 10, -1)
             vim.fn.matchadd("DoxygenBrief", [[@brief\s\+\zs.*$]], 9, -1)
             -- TODO / FIXME / HACK / NOTE 注释高亮
@@ -200,40 +201,40 @@ function M.setup()
     hl("@markup.raw", { fg = c.orange, italic = true })
 
     -- Markdown: render-markdown 补充高亮组
-    hl("RenderMarkdownCode",         { bg = "#2c2f3c" })              -- 代码块（仅背景，不覆盖 treesitter 前景色）
-    hl("RenderMarkdownCodeBorder",   { fg = c.purple })                -- 代码块边框
-    hl("RenderMarkdownCodeInline",   { fg = c.yellow, bg = "#2c2f3c", bold = true }) -- 行内代码
-    hl("RenderMarkdownCodeInfo",     { fg = c.cyan })                  -- 代码语言标识
-    hl("RenderMarkdownCodeFallback", { fg = c.cyan, italic = true })   -- 代码回退
-    hl("RenderMarkdownQuote",        { fg = c.blue, italic = true })   -- 引用块
-    hl("RenderMarkdownQuote1",       { fg = c.red, italic = true })    -- 引用层级1
-    hl("RenderMarkdownQuote2",       { fg = c.orange, italic = true }) -- 引用层级2
-    hl("RenderMarkdownQuote3",       { fg = c.yellow, italic = true }) -- 引用层级3
-    hl("RenderMarkdownQuote4",       { fg = c.green, italic = true })  -- 引用层级4
-    hl("RenderMarkdownQuote5",       { fg = c.cyan, italic = true })   -- 引用层级5
-    hl("RenderMarkdownQuote6",       { fg = c.purple, italic = true }) -- 引用层级6
-    hl("RenderMarkdownBullet",       { fg = c.pink, bold = true })     -- 无序列表符号
-    hl("RenderMarkdownChecked",      { fg = c.green, bold = true })    -- 已勾选
-    hl("RenderMarkdownUnchecked",    { fg = c.orange })                -- 未勾选
-    hl("RenderMarkdownLink",         { fg = c.cyan, underline = true, bold = true }) -- 链接
-    hl("RenderMarkdownLinkTitle",    { fg = c.purple, italic = true }) -- 链接标题
-    hl("RenderMarkdownTableHead",    { fg = c.cyan, bold = true }) -- 表头
-    hl("RenderMarkdownTableRow",     { fg = c.fg })                    -- 表格行
-    hl("RenderMarkdownMath",         { fg = c.pink, bold = true })     -- LaTeX 公式
-    hl("RenderMarkdownDash",         { fg = c.purple, bold = true })   -- 分隔线 ---
-    hl("RenderMarkdownSign",         { fg = c.purple, bold = true })   -- 标题符号
-    hl("RenderMarkdownTodo",         { fg = c.red, bold = true })      -- TODO
-    hl("RenderMarkdownHtmlComment",  { fg = c.comment, italic = true }) -- HTML 注释
-    hl("RenderMarkdownInlineHighlight", { fg = c.yellow, bg = "#2c2f3c" }) -- 行内高亮
-    hl("RenderMarkdownIndent",       { fg = "#9098b8" })               -- 缩进线
-    hl("RenderMarkdownWikiLink",     { fg = c.cyan, underline = true }) -- Wiki 链接
-    hl("RenderMarkdownError",        { fg = c.red, bold = true })      -- 错误
-    hl("RenderMarkdownWarn",         { fg = c.orange, bold = true })   -- 警告
-    hl("RenderMarkdownInfo",         { fg = c.cyan, bold = true })     -- 信息
-    hl("RenderMarkdownHint",         { fg = c.blue, bold = true })     -- 提示
-    hl("RenderMarkdownSuccess",      { fg = c.green, bold = true })    -- 成功
-    hl("RenderMarkdownColors",       { fg = c.fg })                    -- 颜色
-    hl("RenderMarkdownPreview",      { link = "Normal" })              -- 预览
+    hl("RenderMarkdownCode", { bg = "#222838" })                                -- 代码块（透明，Kitty 终端支持）
+    hl("RenderMarkdownCodeBorder", { fg = c.purple })                           -- 代码块边框
+    hl("RenderMarkdownCodeInline", { fg = c.yellow, bg = "NONE", bold = true }) -- 行内代码
+    hl("RenderMarkdownCodeInfo", { fg = c.cyan })                               -- 代码语言标识
+    hl("RenderMarkdownCodeFallback", { fg = c.cyan, italic = true })            -- 代码回退
+    hl("RenderMarkdownQuote", { fg = c.blue, italic = true })                   -- 引用块
+    hl("RenderMarkdownQuote1", { fg = c.red, italic = true })                   -- 引用层级1
+    hl("RenderMarkdownQuote2", { fg = c.orange, italic = true })                -- 引用层级2
+    hl("RenderMarkdownQuote3", { fg = c.yellow, italic = true })                -- 引用层级3
+    hl("RenderMarkdownQuote4", { fg = c.green, italic = true })                 -- 引用层级4
+    hl("RenderMarkdownQuote5", { fg = c.cyan, italic = true })                  -- 引用层级5
+    hl("RenderMarkdownQuote6", { fg = c.purple, italic = true })                -- 引用层级6
+    hl("RenderMarkdownBullet", { fg = c.pink, bold = true })                    -- 无序列表符号
+    hl("RenderMarkdownChecked", { fg = c.green, bold = true })                  -- 已勾选
+    hl("RenderMarkdownUnchecked", { fg = c.orange })                            -- 未勾选
+    hl("RenderMarkdownLink", { fg = c.cyan, underline = true, bold = true })    -- 链接
+    hl("RenderMarkdownLinkTitle", { fg = c.purple, italic = true })             -- 链接标题
+    hl("RenderMarkdownTableHead", { fg = c.cyan, bold = true })                 -- 表头
+    hl("RenderMarkdownTableRow", { fg = c.fg })                                 -- 表格行
+    hl("RenderMarkdownMath", { fg = c.pink, bold = true })                      -- LaTeX 公式
+    hl("RenderMarkdownDash", { fg = c.purple, bold = true })                    -- 分隔线 ---
+    hl("RenderMarkdownSign", { fg = c.purple, bold = true })                    -- 标题符号
+    hl("RenderMarkdownTodo", { fg = c.red, bold = true })                       -- TODO
+    hl("RenderMarkdownHtmlComment", { fg = c.comment, italic = true })          -- HTML 注释
+    hl("RenderMarkdownInlineHighlight", { fg = c.yellow, bg = "#2c2f3c" })      -- 行内高亮
+    hl("RenderMarkdownIndent", { fg = "#9098b8" })                              -- 缩进线
+    hl("RenderMarkdownWikiLink", { fg = c.cyan, underline = true })             -- Wiki 链接
+    hl("RenderMarkdownError", { fg = c.red, bold = true })                      -- 错误
+    hl("RenderMarkdownWarn", { fg = c.orange, bold = true })                    -- 警告
+    hl("RenderMarkdownInfo", { fg = c.cyan, bold = true })                      -- 信息
+    hl("RenderMarkdownHint", { fg = c.blue, bold = true })                      -- 提示
+    hl("RenderMarkdownSuccess", { fg = c.green, bold = true })                  -- 成功
+    hl("RenderMarkdownColors", { fg = c.fg })                                   -- 颜色
+    hl("RenderMarkdownPreview", { link = "Normal" })                            -- 预览
 
     hl("RainbowDelimiterRed", { fg = c.red })
     hl("RainbowDelimiterOrange", { fg = c.orange })

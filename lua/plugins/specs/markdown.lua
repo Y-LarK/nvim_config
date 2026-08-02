@@ -14,14 +14,6 @@ return {
                 enabled = true,
                 above = 0,
                 below = 0,
-                ignore = {
-                    head_background = { "n", "c" },
-                    head_border = { "n", "c" },
-                    head_icon = { "n", "c" },
-                    dash = { "n", "c" },
-                    code_background = { "n", "c" },
-                    code_border = { "n", "c" },
-                },
             },
             file_types = { "markdown" },
             latex = {
@@ -38,7 +30,7 @@ return {
                 position = "inline",
                 backgrounds = { "", "", "", "", "", "" },
                 sign = true,
-                signs = { "①", "②", "③", "④", "⑤", "⑥" },
+                signs = { "▶", "▷", "▸", "▹", "‣", "·" },
                 left_pad = 0,  -- 左侧缩进，0 = 顶格
                 right_pad = 0, -- 右侧填充
             },
@@ -47,6 +39,24 @@ return {
                 sign = false,
                 width = "block",
                 right_pad = 1,
+            },
+            callout = {
+                note = { rendered = " Note", highlight = "RenderMarkdownInfo" },
+                tip = { rendered = "󰂠 Tip", highlight = "RenderMarkdownSuccess" },
+                important = { rendered = "󱈚 Important", highlight = "RenderMarkdownWarn" },
+                warning = { rendered = " Warning", highlight = "RenderMarkdownWarn" },
+                caution = { rendered = "󱃩 Caution", highlight = "RenderMarkdownError" },
+            },
+            quote = {
+                enabled = true,
+                icon = "▎",
+                repeat_linebreak = true,
+            },
+            dash = {
+                enabled = true,
+                icon = "─",
+                width = "full",
+                highlight = "RenderMarkdownDash",
             },
             bullet = {
                 enabled = true,
