@@ -1,3 +1,13 @@
+local rainbow_highlights = {
+  "RainbowDelimiterRed",
+  "RainbowDelimiterYellow",
+  "RainbowDelimiterBlue",
+  "RainbowDelimiterOrange",
+  "RainbowDelimiterGreen",
+  "RainbowDelimiterViolet",
+  "RainbowDelimiterCyan",
+}
+
 return {
   {
     "lukas-reineke/indent-blankline.nvim",
@@ -17,7 +27,7 @@ return {
         show_start = true, -- 是否在作用域开始处显示小横线
         show_end = false,
         injected_languages = true,
-        highlight = { "RainbowDelimiterViolet" }, -- 连线颜色：建议关联你的彩虹色
+        highlight = rainbow_highlights,
         priority = 500,
       },
       -- 3. 排除规则
@@ -33,7 +43,9 @@ return {
       },
     },
     config = function(_, opts)
+      local hooks = require("ibl.hooks")
       require("ibl").setup(opts)
+      hooks.register(hooks.type.SCOPE_HIGHLIGHT, hooks.builtin.scope_highlight_from_extmark)
     end,
   },
 }
