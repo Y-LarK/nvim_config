@@ -168,7 +168,7 @@ map("n", "<leader>mj", function()
                 elseif url:match("^#") then
                     local text = url:sub(2):gsub("%-", " ")
                     local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
-                    vim.cmd("normal! m'")               -- 记入跳转列表，Ctrl-o 可回
+                    vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
                     vim.fn.search(pat, "w")
                     return
                 end
@@ -187,7 +187,7 @@ map("n", "<leader>mj", function()
     if anchor then
         local text = anchor:sub(2):gsub("%-", " ")
         local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
-        vim.cmd("normal! m'")                           -- 记入跳转列表，Ctrl-o 可回
+        vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
         vim.fn.search(pat, "w")
     end
 end, { desc = "跳转 Markdown 锚点 / 打开链接" })
