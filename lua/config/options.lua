@@ -9,6 +9,7 @@ opt.clipboard      = "unnamedplus"
 -- 行号
 opt.number         = true
 opt.relativenumber = true
+opt.fillchars      = { eob = " " } -- 隐藏缓冲区末尾的 ~ 占位符
 
 -- 缩进
 opt.tabstop        = 4
