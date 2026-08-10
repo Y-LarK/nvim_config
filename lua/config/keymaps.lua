@@ -70,9 +70,9 @@ map("n", "<C-d>", function() require('neoscroll').ctrl_d({ duration = 250 }) end
 map("n", "<C-b>", function() require('neoscroll').ctrl_b({ duration = 450 }) end, { desc = "平滑向上翻整屏" })
 map("n", "<C-f>", function() require('neoscroll').ctrl_f({ duration = 450 }) end, { desc = "平滑向下翻整屏" })
 -- 平滑对齐
-map("n", "zt", function() require('neoscroll').zt({ duration = 150 }) end, { desc = "平滑将当前行置顶" })
-map("n", "zz", function() require('neoscroll').zz({ duration = 150 }) end, { desc = "平滑将当前行居中" })
-map("n", "zb", function() require('neoscroll').zb({ duration = 150 }) end, { desc = "平滑将当前行置底" })
+map("n", "zt", function() require('neoscroll').zt({ half_win_duration = 150 }) end, { desc = "平滑将当前行置顶" })
+map("n", "zz", function() require('neoscroll').zz({ half_win_duration = 150 }) end, { desc = "平滑将当前行居中" })
+map("n", "zb", function() require('neoscroll').zb({ half_win_duration = 150 }) end, { desc = "平滑将当前行置底" })
 -- LSP
 map("n", "K", vim.lsp.buf.hover, { desc = "LSP 悬浮文档" })
 local gd_state = {} -- 记录上次 gd 跳转来源
