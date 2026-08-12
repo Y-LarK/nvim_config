@@ -103,7 +103,8 @@ map("n", "<leader>dc", function()
     if fname then
         -- 函数
         for a in (line:match("%((.-)%)") or ""):gmatch("[^,]+") do
-            local name = a:match("(%w+)%s*$") or ""
+            -- 兼容数组 int arr[] / int arr[10]：先去掉 [..] 再取末尾单词
+            local name = (a:gsub("%[.*%]", "")):match("(%w+)%s*$") or ""
             if name ~= "" and name ~= "void" then table.insert(args, name) end
         end
         ret = line:match("^(%S+)%s") or "void"
