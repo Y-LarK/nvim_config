@@ -42,7 +42,7 @@ return {
                 preselect = cmp.PreselectMode.None,
                 completion = {
                     completeopt = "menu,menuone,noselect",
-                    keyword_length = 1,
+                    keyword_length = 2, -- 减少过早触发，避免噪音补全
                 },
                 sorting = {
                     priority_weight = 2,
@@ -60,6 +60,7 @@ return {
                 window = {
                     completion = cmp.config.window.bordered({
                         border = "rounded", -- 改为圆角
+                        max_height = 10, -- 限制补全窗口高度，超出自动滚动
                         winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
                     }),
                     documentation = cmp.config.window.bordered({
@@ -100,6 +101,20 @@ return {
                     { name = "buffer",   priority = 500,  max_item_count = 8 },
                     { name = "path",     priority = 250,  max_item_count = 5 },
                 }),
+            })
+
+            -- C/C++ 等强类型语言：禁用 buffer 源，避免模糊补全干扰 clangd 语义补全
+            vim.api.nvim_create_autocmd("FileType", {
+                pattern = { "c", "cpp", "cuda", "objc", "objcpp" },
+                callback = function()
+                    cmp.setup.buffer({
+                        sources = cmp.config.sources({
+                            { name = "nvim_lsp", priority = 1000, max_item_count = 10 },
+                            { name = "luasnip",  priority = 750,  max_item_count = 10 },
+                            { name = "path",     priority = 250,  max_item_count = 5 },
+                        }),
+                    })
+                end,
             })
 
             -- --- 命令行模式映射 ---
