@@ -9,6 +9,8 @@ return {
         cmake_regenerate_on_save = true, -- 保存 CMakeLists.txt 时自动重新生成
         cmake_generate_options = {       -- cmake 生成时附加参数
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
+            "-G",
+            "Ninja", -- 用 Ninja 作为生成器（并行编译更快）
         },
         cmake_build_options = {},          -- cmake --build 时附加参数
         cmake_build_directory = "build", -- 构建目录，直接放在项目根目录下的 build/
