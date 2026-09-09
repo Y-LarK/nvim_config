@@ -249,3 +249,6 @@ map("n", "<leader>tc", function()
     local row = vim.api.nvim_win_get_cursor(0)[1]
     vim.api.nvim_buf_set_lines(0, row, row, false, toc)
 end, { desc = "生成 Markdown 目录 (TOC)" })
+
+-- 原生终端(cmake 编译等弹出的终端)：<C-g> 退回 normal 模式，与 toggleterm 一致
+map("t", "<C-g>", "<C-\\><C-n>", { desc = "终端退回 normal 模式" })
