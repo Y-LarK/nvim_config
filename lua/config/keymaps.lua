@@ -221,6 +221,101 @@ map("n", "<leader>ha", function()
     vim.cmd("e " .. dir .. "/" .. targets[1])
 end, { desc = "头文件↔源文件切换" })
 
+-- 在 .h 成员函数声明处按 <leader>hi -> 在对应 .cpp 生成实现骨架
+map("n", "<leader>hi", function()
+    if not vim.fn.expand("%:e"):match("^h") then
+        vim.notify("请在头文件 (.h/.hpp) 里使用", vim.log.levels.WARN)
+        return
+    end
+
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
+    -- 去掉行尾注释、分号、首尾空白
+    local decl = line:gsub("//.*$", ""):gsub(";%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if decl == "" or decl:match("^#") then
+        vim.notify("当前行不是函数声明", vim.log.levels.WARN)
+        return
+    end
+
+    local head, args = decl:match("^(.-)(%b())")
+    if not head or not args then
+        vim.notify("无法解析函数声明", vim.log.levels.WARN)
+        return
+    end
+    local tail = decl:sub(#head + #args + 1)
+
+    local name = head:match("([%w_~][%w_]*)$")
+    if not name then
+        vim.notify("未识别到函数名", vim.log.levels.WARN)
+        return
+    end
+
+    -- 返回类型 = head 去掉函数名，再剔除常见限定符
+    local ret = head:sub(1, #head - #name)
+    for _, kw in ipairs({ "virtual", "static", "inline", "explicit", "friend", "constexpr" }) do
+        ret = ret:gsub("%f[%w]" .. kw .. "%f[%W]", " ")
+    end
+    ret = ret:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+
+    -- 参数去掉默认值（实现里不能再写）
+    local params = args:gsub("%s*=%s*[^,)]+", "")
+    -- 尾部：保留 const/noexcept，丢弃 override/final/=0/=default/=delete
+    tail = tail:gsub("%f[%w]override%f[%W]", "")
+        :gsub("%f[%w]final%f[%W]", "")
+        :gsub("%s*=%s*[%w_]+", "")
+        :gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+
+    -- 所属类：向上找最近的 class/struct
+    local cls
+    for i = row, 1, -1 do
+        local l = vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1] or ""
+        cls = l:match("^%s*class%s+([%w_]+)") or l:match("^%s*struct%s+([%w_]+)")
+        if cls then break end
+    end
+    if not cls then
+        vim.notify("未找到所属 class/struct", vim.log.levels.WARN)
+        return
+    end
+
+    -- 找对应 .cpp（与 <leader>ha 相同的搜索路径）
+    local dir, base = vim.fn.expand("%:p:h"), vim.fn.expand("%:t:r")
+    local cpp
+    for _, sdir in ipairs({ dir, dir .. "/../src", dir .. "/src" }) do
+        for _, e in ipairs({ ".cpp", ".cc", ".cxx" }) do
+            local p = sdir .. "/" .. base .. e
+            if vim.fn.filereadable(p) == 1 then
+                cpp = p
+                break
+            end
+        end
+        if cpp then break end
+    end
+    if not cpp then
+        vim.notify("未找到 " .. base .. ".cpp", vim.log.levels.WARN)
+        return
+    end
+
+    vim.cmd("e " .. vim.fn.fnameescape(cpp))
+    -- 已存在同名实现则只跳转，不再追加（纯文本匹配，避免 vim 正则对 ( ) 的解析问题）
+    local needle = cls .. "::" .. name
+    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+    for i, l in ipairs(lines) do
+        if l:find(needle, 1, true) then
+            vim.api.nvim_win_set_cursor(0, { i, 0 })
+            vim.notify("实现已存在，已跳转", vim.log.levels.INFO)
+            return
+        end
+    end
+
+    local impl = (ret ~= "" and (ret .. " ") or "")
+        .. cls .. "::" .. name .. params .. (tail ~= "" and (" " .. tail) or "") .. " {\n\n}"
+    local last = vim.api.nvim_buf_line_count(0)
+    local new_lines = { "" }
+    vim.list_extend(new_lines, vim.split(impl, "\n", { plain = true }))
+    vim.api.nvim_buf_set_lines(0, last, last, false, new_lines)
+    vim.api.nvim_win_set_cursor(0, { last + 3, 0 }) -- 光标落在 {} 内
+end, { desc = "生成函数实现到 .cpp" })
+
 -- Markdown 折行开关（大表格时关掉看对齐）
 map("n", "<leader>tw", function()
     vim.wo.wrap = not vim.wo.wrap
