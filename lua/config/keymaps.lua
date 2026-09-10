@@ -296,14 +296,19 @@ map("n", "<leader>hi", function()
     end
 
     vim.cmd("e " .. vim.fn.fnameescape(cpp))
-    -- 已存在同名实现则只跳转，不再追加（纯文本匹配，避免 vim 正则对 ( ) 的解析问题）
-    local needle = cls .. "::" .. name
+    -- 已存在同名"同参数"实现才只跳转（比较参数串以区分重载；纯文本匹配避免 vim 正则问题）
+    local prefix = cls .. "::" .. name
+    local want_args = params:gsub("%s+", "")
     local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
     for i, l in ipairs(lines) do
-        if l:find(needle, 1, true) then
-            vim.api.nvim_win_set_cursor(0, { i, 0 })
-            vim.notify("实现已存在，已跳转", vim.log.levels.INFO)
-            return
+        local pos = l:find(prefix, 1, true)
+        if pos then
+            local argstr = l:sub(pos + #prefix):match("^%s*(%b())")
+            if argstr and argstr:gsub("%s+", "") == want_args then
+                vim.api.nvim_win_set_cursor(0, { i, 0 })
+                vim.notify("实现已存在，已跳转", vim.log.levels.INFO)
+                return
+            end
         end
     end
 
