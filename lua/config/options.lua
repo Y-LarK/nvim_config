@@ -71,4 +71,12 @@ vim.api.nvim_create_autocmd("FileType", {
         vim.opt_local.softtabstop = 0
     end,
 })
+
+-- 取消回车 / o / O 自动延续注释符（默认 formatoptions 的 r、o 标志）
+vim.api.nvim_create_autocmd("FileType", {
+    pattern = "*",
+    callback = function()
+        vim.opt_local.formatoptions:remove({ "r", "o" })
+    end,
+})
 opt.guicursor = "n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50"
