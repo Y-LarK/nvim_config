@@ -15,10 +15,11 @@ local closing_pairs = {
     ["]"] = "[",
     ["}"] = "{",
 }
--- 节点法识别的括号对：{ }（代码块）与 < >（C++ 模板参数）
+-- 节点法识别的括号对：{ }（代码块）、< >（C++ 模板参数）与 " "（字符串字面量）
 local node_pair_chars = {
     ["{"] = "}",
     ["<"] = ">",
+    ['"'] = '"',
 }
 local rainbow_highlights = {
     "RainbowDelimiterRed",
@@ -155,8 +156,11 @@ local function update(bufnr)
     if ok and node then
         local n = node
         while n do
-            if non_code_node_types[n:type()] then
-                break -- 在字符串/注释/头文件内，不再向上找块
+            local ntype = n:type()
+            local in_non_code = non_code_node_types[ntype]
+            -- 字符串字面量本身可作为引号连线目标；其它非代码节点直接停止上溯
+            if in_non_code and ntype ~= "string_literal" then
+                break
             end
             local sr, sc, er, ec = n:range()
             if node_covers(row, col, sr, sc, er, ec) then
@@ -167,9 +171,19 @@ local function update(bufnr)
                 if node_pair_chars[open_ch] == close_ch then
                     local span = (er - sr) * 10000 + (ec - sc)
                     if not best_node or span < best_node.span then
-                        best_node = { span = span, sr = sr, sc = sc, er = er, ec = ec }
+                        best_node = {
+                            span = span,
+                            sr = sr,
+                            sc = sc,
+                            er = er,
+                            ec = ec,
+                            is_string = open_ch == '"', -- 字符串引号固定用黄色
+                        }
                     end
                 end
+            end
+            if in_non_code then
+                break -- 已在字符串/注释内，不再向上找外层块
             end
             n = n:parent()
         end
@@ -185,7 +199,9 @@ local function update(bufnr)
             priority = 120,
         })
     elseif best_node then
-        local group = get_rainbow_group(bufnr, best_node.sr, best_node.sc)
+        -- rainbow 不给字符串引号着色，故引号连线固定用黄色；其余取该位置 delimiter 的颜色
+        local group = best_node.is_string and "RainbowDelimiterYellow"
+            or get_rainbow_group(bufnr, best_node.sr, best_node.sc)
         if best_node.sr == row and best_node.er == row then
             -- 同行块/模板：整段下划线
             api.nvim_buf_set_extmark(bufnr, namespace, row, best_node.sc, {
