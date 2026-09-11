@@ -203,7 +203,7 @@ map("n", "<leader>ha", function()
     if ext:match("^c") then
         targets = { base .. ".h", base .. ".hpp" }
     elseif ext:match("^h") then
-        targets = { base .. ".c", base .. ".cpp", base .. ".cc" }
+        targets = { base .. ".cc", base .. ".cpp", base .. ".c" }
     else
         return
     end
@@ -221,7 +221,7 @@ map("n", "<leader>ha", function()
     vim.cmd("e " .. dir .. "/" .. targets[1])
 end, { desc = "头文件↔源文件切换" })
 
--- 在 .h 成员函数声明处按 <leader>hi -> 在对应 .cpp 生成实现骨架
+-- 在 .h 成员函数声明处按 <leader>hi -> 在对应源文件生成实现骨架
 map("n", "<leader>hi", function()
     if not vim.fn.expand("%:e"):match("^h") then
         vim.notify("请在头文件 (.h/.hpp) 里使用", vim.log.levels.WARN)
@@ -277,11 +277,11 @@ map("n", "<leader>hi", function()
         return
     end
 
-    -- 找对应 .cpp（与 <leader>ha 相同的搜索路径）
+    -- 找对应源文件 .cc/.cpp（与 <leader>ha 相同的搜索路径）
     local dir, base = vim.fn.expand("%:p:h"), vim.fn.expand("%:t:r")
     local cpp
     for _, sdir in ipairs({ dir, dir .. "/../src", dir .. "/src" }) do
-        for _, e in ipairs({ ".cpp", ".cc", ".cxx" }) do
+        for _, e in ipairs({ ".cc", ".cpp", ".cxx" }) do
             local p = sdir .. "/" .. base .. e
             if vim.fn.filereadable(p) == 1 then
                 cpp = p
@@ -291,7 +291,7 @@ map("n", "<leader>hi", function()
         if cpp then break end
     end
     if not cpp then
-        vim.notify("未找到 " .. base .. ".cpp", vim.log.levels.WARN)
+        vim.notify("未找到源文件 " .. base .. "（.cc/.cpp）", vim.log.levels.WARN)
         return
     end
 
@@ -319,7 +319,7 @@ map("n", "<leader>hi", function()
     vim.list_extend(new_lines, vim.split(impl, "\n", { plain = true }))
     vim.api.nvim_buf_set_lines(0, last, last, false, new_lines)
     vim.api.nvim_win_set_cursor(0, { last + 3, 0 }) -- 光标落在 {} 内
-end, { desc = "生成函数实现到 .cpp" })
+end, { desc = "生成函数实现到源文件" })
 
 -- Markdown 折行开关（大表格时关掉看对齐）
 map("n", "<leader>tw", function()
