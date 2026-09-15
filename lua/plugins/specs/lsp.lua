@@ -23,34 +23,71 @@ return {
                 })
             end
 
-            local function clangd_on_new_config(new_config, _)
+            -- 定位编译数据库目录：
+            --   1) 优先用 cmake-tools 的（它知道当前构建类型）
+            --   2) 无效时从当前文件所在目录逐级向上搜索 build 下的常见位置
+            -- 关键：必须在 cmd 函数（进程启动前）里求值 —— before_init 太晚，
+            -- LSP 进程已经 spawn，那时改 cmd 不会生效。
+            local function resolve_compile_commands_dir()
                 local ok_cmake, cmake = pcall(require, "cmake-tools")
                 if ok_cmake then
-                    cmake.clangd_on_new_config(new_config)
+                    local probe = { cmd = {} }
+                    if pcall(cmake.clangd_on_new_config, probe) then
+                        for _, arg in ipairs(probe.cmd) do
+                            local d = arg:match("^%-%-compile%-commands%-dir=(.+)$")
+                            if d and vim.fn.isdirectory(d) == 1 then
+                                return d
+                            end
+                        end
+                    end
                 end
+
+                local suffixes = {
+                    "/build/*/compile_commands.json",
+                    "/build/*/.qtc_clangd/compile_commands.json",
+                    "/build/compile_commands.json",
+                }
+                local file = vim.api.nvim_buf_get_name(0)
+                local dir = vim.fn.fnamemodify(file ~= "" and file or vim.fn.getcwd(), ":p:h")
+                while dir ~= "" and dir ~= "/" do
+                    for _, suffix in ipairs(suffixes) do
+                        for _, found in ipairs(vim.fn.glob(dir .. suffix, false, true)) do
+                            return vim.fn.fnamemodify(found, ":h")
+                        end
+                    end
+                    local parent = vim.fn.fnamemodify(dir, ":h")
+                    if parent == dir then break end
+                    dir = parent
+                end
+                return nil
             end
 
             local servers = {
                 clangd = {
-                    cmd = (function()
+                    -- cmd 用函数形式：进程启动前求值，才能按当前文件定位编译数据库。
+                    -- 注意 nvim 0.12 要求返回 rpc 对象（不是 cmd 数组），故用 vim.lsp.rpc.start
+                    cmd = function(dispatchers, config)
+                        local c
                         if os.getenv("CLANGD_REMOTE") == "1" then
                             local port = os.getenv("CLANGD_PORT") or "9527"
-                            return { "socat", "-", "TCP:localhost:" .. port }
+                            c = { "socat", "-", "TCP:localhost:" .. port }
+                        else
+                            c = {
+                                "clangd",
+                                "--background-index",
+                                "--clang-tidy",
+                                "--header-insertion=iwyu",
+                                "--completion-style=detailed",
+                                "--function-arg-placeholders=1",
+                            }
                         end
-                        return {
-                            "clangd",
-                            "--background-index",
-                            "--clang-tidy",
-                            "--header-insertion=iwyu",
-                            "--completion-style=detailed",
-                            "--function-arg-placeholders=1",
-                        }
-                    end)(),
-                    root_markers = { ".clangd", "compile_commands.json", "CMakeLists.txt", ".git" },
-                    init_options = {
-                        compilationDatabasePath = "build",
-                    },
-                    on_new_config = clangd_on_new_config,
+                        local dir = resolve_compile_commands_dir()
+                        if dir then
+                            table.insert(c, "--compile-commands-dir=" .. dir)
+                        end
+                        return vim.lsp.rpc.start(c, dispatchers)
+                    end,
+                    root_markers = { "CMakeLists.txt", "compile_commands.json", ".git", ".clangd" },
                 },
 
                 lua_ls = {
@@ -140,6 +177,23 @@ return {
                     end
                 end,
             })
+
+            -- clang-tidy 的“未使用”诊断默认不带 Unnecessary 标记，这里补上，
+            -- 让它套用 DiagnosticUnnecessary 高亮（默认 link Comment），与编译器 unused 提示视觉统一
+            local orig_publish_diagnostics = vim.lsp.handlers["textDocument/publishDiagnostics"]
+            vim.lsp.handlers["textDocument/publishDiagnostics"] = function(err, result, ctx, config)
+                if result and result.diagnostics then
+                    for _, d in ipairs(result.diagnostics) do
+                        if d.source == "clang-tidy" and d.message:match("^[Uu]nused ") then
+                            d.tags = d.tags or {}
+                            if not vim.tbl_contains(d.tags, 1) then
+                                table.insert(d.tags, 1) -- 1 = DiagnosticTag.Unnecessary
+                            end
+                        end
+                    end
+                end
+                return orig_publish_diagnostics(err, result, ctx, config)
+            end
 
             -- 诊断配置
             vim.diagnostic.config({
