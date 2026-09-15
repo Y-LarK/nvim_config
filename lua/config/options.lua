@@ -72,6 +72,18 @@ vim.api.nvim_create_autocmd("FileType", {
     end,
 })
 
+-- 模板实现文件按 C++ 处理（treesitter 高亮、clangd、缩进、注释、括号连线等）
+vim.filetype.add({
+    extension = {
+        tpp = "cpp",
+        ipp = "cpp",
+        inl = "cpp",
+        tcc = "cpp",
+        hxx = "cpp",
+        hh = "cpp",
+    },
+})
+
 -- 取消回车 / o / O 自动延续注释符（默认 formatoptions 的 r、o 标志）
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "*",
