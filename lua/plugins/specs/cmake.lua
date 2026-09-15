@@ -13,9 +13,12 @@ return {
             "Ninja", -- 用 Ninja 作为生成器（并行编译更快）
         },
         cmake_build_options = {},          -- cmake --build 时附加参数
-        cmake_build_directory = "build", -- 构建目录，直接放在项目根目录下的 build/
+        cmake_build_directory = "build/${variant:buildType}", -- 按构建类型隔离：build/Debug、build/Release
         cmake_compile_commands_options = {
-            action = "lsp", -- soft_link | copy | lsp | none（lsp=不给根目录创建软链/副本）
+            -- 编译数据库定位已由 lsp.lua 的 clangd_on_new_config 自动处理
+            -- （从文件所在目录向上搜索 build/*/compile_commands.json），
+            -- 无需在项目根建软链；lsp 表示生成后刷新已连接的 clangd 客户端
+            action = "lsp",
             target = vim.loop.cwd,
         },
         cmake_dap_configuration = {             -- DAP 调试配置（覆盖默认 codelldb）
