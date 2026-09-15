@@ -59,9 +59,64 @@ map("n", "<leader>cb", "<cmd>CMakeBuild<cr>", { desc = "CMake 构建 (Build)" })
 map("n", "<leader>cr", "<cmd>CMakeRun<cr>", { desc = "CMake 运行 (Run)" })
 map("n", "<leader>cd", "<cmd>CMakeDebug<cr>", { desc = "CMake 调试 (Debug)" })
 map("n", "<leader>ct", "<cmd>CMakeSelectTarget<cr>", { desc = "选择构建目标" })
-map("n", "<leader>cc", "<cmd>CMakeClean<cr>", { desc = "CMake 清理 (Clean)" })
-map("n", "<leader>cD", "<cmd>lua vim.fn.delete(vim.fn.getcwd() .. '/build', 'rf')<cr>", { desc = "删除 build 目录" })
+-- 清理当前构建缓存（cmake-tools 以 nvim 工作目录为项目根；无缓存时它会静默返回，这里补上提示）
+map("n", "<leader>cc", function()
+    local caches = vim.fn.glob(vim.fn.getcwd() .. "/build/*/CMakeCache.txt", false, true)
+    if #caches == 0 then
+        vim.notify("没有可清理的构建缓存，请先 <leader>cg 生成", vim.log.levels.WARN)
+        return
+    end
+    vim.cmd("CMakeClean")
+end, { desc = "CMake 清理 (Clean)" })
+-- 删除 build 目录（含 cmake-tools 在项目根建的 compile_commands.json 软链，避免留下坏链）
+map("n", "<leader>cX", function()
+    local root = vim.fn.getcwd()
+    local build = root .. "/build"
+    local link = root .. "/compile_commands.json"
+    local removed = {}
+
+    if vim.fn.getftype(link) == "link" then
+        vim.fn.delete(link)
+        removed[#removed + 1] = "compile_commands.json 软链"
+    end
+
+    if vim.fn.isdirectory(build) == 1 then
+        vim.fn.delete(build, "rf")
+        if vim.fn.isdirectory(build) == 1 then
+            vim.notify("删除 build 目录失败：" .. build, vim.log.levels.ERROR)
+            return
+        end
+        table.insert(removed, 1, "build 目录")
+    end
+
+    if #removed == 0 then
+        vim.notify("未找到 build 目录：" .. build, vim.log.levels.WARN)
+    else
+        vim.notify("已删除 " .. table.concat(removed, " + "), vim.log.levels.INFO)
+    end
+end, { desc = "删除 build 目录" })
 map("n", "<leader>ck", "<cmd>CMakeStop<cr>", { desc = "停止当前任务" })
+
+-- 切换构建类型（Debug/Release）并生成：复用插件的 CMakeSelectBuildType，自动选中目标类型
+local function switch_build_type(target)
+    return function()
+        local orig_select = vim.ui.select
+        vim.ui.select = function(items, opts, on_choice)
+            vim.ui.select = orig_select -- 先还原，避免影响后续交互
+            for _, item in ipairs(items) do
+                local short = type(item) == "table" and item.short or item
+                if short == target then
+                    return on_choice(item)
+                end
+            end
+            return on_choice(nil)
+        end
+        vim.cmd("CMakeSelectBuildType")
+    end
+end
+
+map("n", "<leader>cR", switch_build_type("Release"), { desc = "CMake 切 Release 并生成" })
+map("n", "<leader>cD", switch_build_type("Debug"), { desc = "CMake 切 Debug 并生成" })
 
 -- 平滑滚动快捷键 (Neoscroll)
 -- 使用插件默认的函数来实现平滑翻页
@@ -202,6 +257,12 @@ map("n", "<leader>ha", function()
     local targets = {}
     if ext:match("^c") then
         targets = { base .. ".h", base .. ".hpp" }
+    elseif ext:match("^tpp$") or ext:match("^ipp$") or ext:match("^inl$") or ext:match("^tcc$") then
+        -- 模板实现文件 → C++ 头文件
+        targets = { base .. ".hpp", base .. ".hh", base .. ".h" }
+    elseif ext:match("^hpp$") or ext:match("^hh$") or ext:match("^hxx$") then
+        -- C++ 头文件 → 优先模板实现文件（模板类外实现须放在被 hpp 包含的文件里）
+        targets = { base .. ".tpp", base .. ".ipp", base .. ".inl", base .. ".cc", base .. ".cpp" }
     elseif ext:match("^h") then
         targets = { base .. ".cc", base .. ".cpp", base .. ".c" }
     else
@@ -219,7 +280,7 @@ map("n", "<leader>ha", function()
     end
     -- 找不到就新建同级文件
     vim.cmd("e " .. dir .. "/" .. targets[1])
-end, { desc = "头文件↔源文件切换" })
+end, { desc = "头文件↔源文件（含模板 .tpp）" })
 
 -- 在 .h 成员函数声明处按 <leader>hi -> 在对应源文件生成实现骨架
 map("n", "<leader>hi", function()
@@ -277,11 +338,16 @@ map("n", "<leader>hi", function()
         return
     end
 
-    -- 找对应源文件 .cc/.cpp（与 <leader>ha 相同的搜索路径）
+    -- 找对应源文件（与 <leader>ha 相同的搜索路径）；.hpp 优先模板实现文件 .tpp/.ipp
     local dir, base = vim.fn.expand("%:p:h"), vim.fn.expand("%:t:r")
+    local cur_ext = vim.fn.expand("%:e")
+    local src_exts = { ".cc", ".cpp", ".cxx" }
+    if cur_ext:match("^hpp$") or cur_ext:match("^hh$") or cur_ext:match("^hxx$") then
+        src_exts = { ".tpp", ".ipp", ".inl", ".cc", ".cpp" }
+    end
     local cpp
     for _, sdir in ipairs({ dir, dir .. "/../src", dir .. "/src" }) do
-        for _, e in ipairs({ ".cc", ".cpp", ".cxx" }) do
+        for _, e in ipairs(src_exts) do
             local p = sdir .. "/" .. base .. e
             if vim.fn.filereadable(p) == 1 then
                 cpp = p
@@ -291,7 +357,7 @@ map("n", "<leader>hi", function()
         if cpp then break end
     end
     if not cpp then
-        vim.notify("未找到源文件 " .. base .. "（.cc/.cpp）", vim.log.levels.WARN)
+        vim.notify("未找到源文件 " .. base .. "（" .. table.concat(src_exts, "/") .. "）", vim.log.levels.WARN)
         return
     end
 
