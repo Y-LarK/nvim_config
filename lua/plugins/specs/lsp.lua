@@ -220,10 +220,14 @@ return {
                     end
                     local clients = vim.lsp.get_clients({ bufnr = 0 })
                     if #clients == 0 then return end
-                    -- 0.12 新 API：make_position_params 需要传 winnr 和 encoding
+                    -- nvim 0.12 的 make_position_params 要求 position_encoding 非 nil，
+                    -- 否则告警；部分 client 的 offset_encoding 可能为空，故加回退链
                     local client = clients[1]
                     local cur_win = vim.api.nvim_get_current_win()
-                    local params = vim.lsp.util.make_position_params(cur_win, client.offset_encoding)
+                    local enc = client.offset_encoding
+                        or (client.server_capabilities and client.server_capabilities.positionEncoding)
+                        or "utf-16"
+                    local params = vim.lsp.util.make_position_params(cur_win, enc)
                     client:request("textDocument/hover", params, function(err, result)
                         if err or not result or not result.contents then
                             return -- 没有内容时静默，不弹通知
