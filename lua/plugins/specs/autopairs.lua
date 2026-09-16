@@ -21,9 +21,7 @@ return {
         local autopairs = require("nvim-autopairs")
         autopairs.setup(opts)
 
-        -- 核心逻辑：当你按回车选中补全项时，自动加上括号
-        local cmp_autopairs = require("nvim-autopairs.completion.cmp")
-        local cmp = require("cmp")
-        cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
+        -- 补全后自动补括号由 blink.cmp 的 completion.accept.auto_brackets 内置提供，
+        -- 原先与 nvim-cmp 的集成不再需要
     end,
 }

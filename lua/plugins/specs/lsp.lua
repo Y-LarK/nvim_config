@@ -10,7 +10,7 @@ return {
             "SmiteshP/nvim-navic",
         },
         config = function()
-            local capabilities = require("cmp_nvim_lsp").default_capabilities()
+            local capabilities = require("blink.cmp").get_lsp_capabilities()
             local lspconfig = require("lspconfig")
             local root_pattern = require("lspconfig.util").root_pattern
             local ok_navic, navic = pcall(require, "nvim-navic")
