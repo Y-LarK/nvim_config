@@ -72,21 +72,23 @@ return {
                         -- 这里把范围扩展到整个标识符，让补全整体替换它。
                         transform_items = function(ctx, items)
                             local line = ctx.line
-                            local p = ctx.pos.col + 1 -- 0-based -> 1-based，便于 string 操作
-                            local s, e = p, p
-                            while s > 1 and line:sub(s - 1, s - 1):match("[%w_]") do
-                                s = s - 1
-                            end
+                            -- 只计算"光标处标识符的结尾"，用于向后扩展
+                            local e = ctx.pos.col + 1 -- 0-based -> 1-based
                             while e <= #line and line:sub(e, e):match("[%w_]") do
                                 e = e + 1
                             end
-                            if s >= e then
-                                return items
-                            end
+                            local word_end = e - 1
+
                             for _, item in ipairs(items) do
-                                if item.textEdit and item.textEdit.range then
-                                    item.textEdit.range.start.character = s - 1
-                                    item.textEdit.range["end"].character = e - 1
+                                local r = item.textEdit and item.textEdit.range
+                                if r and r.start.line == ctx.pos.line and r["end"].line == ctx.pos.line then
+                                    -- 起点沿用 clangd 给的范围：它可能已包含 `.` 或 `->`
+                                    -- （指针误用 `.` 时，clangd 会把 `.` 一起替换成 `->`），
+                                    -- 盲目重算起点会破坏这个修正。
+                                    -- 只把终点向后扩到整个标识符末尾，消除"词中间补全"的残尾。
+                                    if word_end > r["end"].character then
+                                        r["end"].character = word_end
+                                    end
                                 end
                             end
                             return items
