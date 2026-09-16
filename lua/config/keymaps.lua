@@ -147,6 +147,10 @@ map("n", "gd", function()
     end
 end, { desc = "跳转声明/定义 (gd→.h声明, 再次gd→.c定义)" })
 map("n", "gr", vim.lsp.buf.references, { desc = "查看引用" })
+-- 虚函数多态：列出所有重写实现（gd/声明只给静态类型即基类，无法覆盖多态）
+map("n", "gi", function()
+    require("telescope.builtin").lsp_implementations()
+end, { desc = "跳转到实现（虚函数的所有重写）" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
 map("n", "<leader>dc", function()
     -- 在函数/类/结构体上方生成 /** ... */ Doxygen 注释
@@ -162,7 +166,16 @@ map("n", "<leader>dc", function()
             local name = (a:gsub("%[.*%]", "")):match("(%w+)%s*$") or ""
             if name ~= "" and name ~= "void" then table.insert(args, name) end
         end
-        ret = line:match("^(%S+)%s") or "void"
+        -- 返回类型：先去行首缩进（类内成员声明有缩进），再跳过常见修饰符；
+        -- 构造函数/析构函数取不到返回类型，按 void 处理（不加 @return）
+        local head = line:gsub("^%s+", "")
+        for _, kw in ipairs({ "virtual", "static", "inline", "explicit", "constexpr", "friend", "extern" }) do
+            head = head:gsub("^" .. kw .. "%s+", "")
+        end
+        ret = head:match("^(.-)%s*[%w_~]+%s*%(") or "void"
+        if ret == "" then
+            ret = "void"
+        end
     else
         -- 类 / 结构体 / 枚举
         fname = line:match("class%s+([%w_]+)") or line:match("struct%s+([%w_]+)") or line:match("enum%s+([%w_]+)")
