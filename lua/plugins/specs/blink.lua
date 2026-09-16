@@ -81,7 +81,9 @@ return {
 
                             for _, item in ipairs(items) do
                                 local r = item.textEdit and item.textEdit.range
-                                if r and r.start.line == ctx.pos.line and r["end"].line == ctx.pos.line then
+                                -- 注意 ctx.pos 是 { row, col } 结构，没有 line 字段；
+                                -- 写成 ctx.pos.line 会静默得到 nil，导致整块逻辑被跳过
+                                if r and r.start.line == ctx.pos.row and r["end"].line == ctx.pos.row then
                                     -- 起点沿用 clangd 给的范围：它可能已包含 `.` 或 `->`
                                     -- （指针误用 `.` 时，clangd 会把 `.` 一起替换成 `->`），
                                     -- 盲目重算起点会破坏这个修正。
