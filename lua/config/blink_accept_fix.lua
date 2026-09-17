@@ -17,9 +17,10 @@
 --     正常情况 clangd 终点 == 请求时 col，补偿后正好落在接受时光标上
 --
 -- 修法：
---   补偿只负责把 range 终点推进到「当前光标」，不越过它。
---   终点本来就在光标右侧（transform_items 扩到词尾）时保持不动，
---   以免破坏「光标停在标识符中间补全」的行为。
+--   终点取「clangd 指定的终点」与「当前光标」中的较大者，只扩不缩。
+--   既不会推过光标（消除重复计算的那段位移），也不会缩到 clangd 给的终点之前：
+--   clangd 有时会故意让终点越过光标，例如 include 补全的 newText 自带 '>'，
+--   需要连带吃掉已输入的 '>'，一旦被收窄就会拼成 <map>>（实测踩过）。
 --
 -- 上游修复后本文件即可删除。
 
@@ -35,11 +36,13 @@ function text_edits.compensate_for_cursor_movement(text_edit, old_pos, new_pos)
     local end_before = text_edit.range["end"].character
     local out = original_compensate(text_edit, old_pos, new_pos)
 
-    -- 补偿前终点没越过光标，说明这段位移最多只该补到光标处；
-    -- 越过光标的都是重复计算的部分，收回来。
-    if end_before <= new_pos.col then
-        out.range["end"].character = math.min(out.range["end"].character, new_pos.col)
-    end
+    -- 终点 = max(clangd 指定的终点, 当前光标)，只扩不缩：
+    --   不低于 clangd 给的终点 —— clangd 有时故意让终点越过光标，例如 include
+    --     补全的 newText 自带 '>'，需要连带吃掉已输入的 '>'；收窄会拼成 <map>>
+    --   不落后于当前光标 —— 用户继续输入后终点必须跟上
+    -- 原实现按 (接受时光标 - 请求时光标) 平移，在 clangd 已经算过这段位移时会
+    -- 把终点推过头，吞掉右侧的 ) ; —— 取 max 同时消除了这个重复计算。
+    out.range["end"].character = math.max(end_before, new_pos.col)
 
     return out
 end

@@ -104,6 +104,23 @@ return {
                                     end
                                 end
                             end
+                            -- 头文件补全：clangd 会把闭合符一并塞进 newText
+                            -- （实测 newText=[map>] / [test.h"]，range 均覆盖到已输入的闭合符之后）。
+                            -- 光标右侧已有同一个闭合符时，只插头文件名本身并把范围收到光标处，
+                            -- 否则多出的闭合符会与原有的拼成 <map>> / "test.h""；
+                            -- 右侧没有闭合符（如刚打到 <map 或 "test.h）则保持原样，照旧补出。
+                            local closing = line:sub(ctx.pos.col + 1, ctx.pos.col + 1)
+                            if closing == ">" or closing == '"' then
+                                for _, item in ipairs(items) do
+                                    local te = item.textEdit
+                                    if te and te.newText and te.range and te.newText:sub(-1) == closing then
+                                        te.newText = te.newText:sub(1, -2)
+                                        if te.range["end"].character > ctx.pos.col then
+                                            te.range["end"].character = ctx.pos.col
+                                        end
+                                    end
+                                end
+                            end
                             return items
                         end,
                     },
