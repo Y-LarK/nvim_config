@@ -37,6 +37,17 @@ return {
             },
 
             completion = {
+                -- 屏蔽 '<' 作为触发字符（本列表会整体覆盖默认值，故默认三项须列全）。
+                -- 原因：clangd 虽把 '<' 注册为 triggerCharacter，但在 std::cout<< 这类位置
+                -- 它以 TriggerCharacter 模式返回**空结果且不声明 incomplete**，blink 遂把这个
+                -- 空结果当成一次完整结果缓存下来；此后继续输入 M/y/C 时 ctx.id 不递增，
+                -- list:is_valid_for_context() 判定「缓存仍然有效」，于是整个 <<MyC 过程
+                -- 再也不会向 clangd 发请求，菜单里只剩 snippet 候选。
+                -- 屏蔽后输入 '<' 会走 trigger.hide() 清空 context，下一次击键 ctx.id 递增，
+                -- 缓存失效从而强制重新请求。'<' 之后本来也没有可用候选，不弹菜单无损失。
+                trigger = {
+                    show_on_blocked_trigger_characters = { " ", "\n", "\t", "<" },
+                },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
                 ghost_text = { enabled = true },
                 list = {
@@ -103,5 +114,15 @@ return {
             -- 本机有 cargo，使用 Rust fuzzy matcher
             fuzzy = { implementation = "prefer_rust_with_warning" },
         },
+
+        -- 本 config 字段不可省：补丁必须在 setup 之后挂载。
+        -- 删掉它 lazy 会退回默认的 setup(opts)，补丁就不再生效。
+        config = function(_, opts)
+            require("blink.cmp").setup(opts)
+
+            -- 修复：补全接受时吞掉右侧 ) / ;（blink 上游的 range 补偿越界 bug）
+            -- 根因、实测数据与删除时机见该文件头部注释
+            require("config.blink_accept_fix")
+        end,
     },
 }
