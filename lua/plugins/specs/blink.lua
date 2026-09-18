@@ -83,12 +83,22 @@ return {
                         -- 这里把范围扩展到整个标识符，让补全整体替换它。
                         transform_items = function(ctx, items)
                             local line = ctx.line
-                            -- 只计算"光标处标识符的结尾"，用于向后扩展
-                            local e = ctx.pos.col + 1 -- 0-based -> 1-based
-                            while e <= #line and line:sub(e, e):match("[%w_]") do
-                                e = e + 1
+                            -- 只在"光标位于标识符中间"（左侧也是标识符字符）时才向后扩展。
+                            -- 否则会把光标右侧另一个独立的标识符一并划进替换范围：
+                            -- 实测 `std::list<Video> CData::|videoList;` 补全 CData 时，
+                            -- ':' 之后一路扫到 videoList 末尾，接受后整个 videoList 被吞，
+                            -- 变成 `std::list<Video> CData;`。
+                            local prev_char = ctx.pos.col > 0 and line:sub(ctx.pos.col, ctx.pos.col) or ""
+                            local word_end = ctx.pos.col
+                            if prev_char:match("[%w_]") then
+                                local e = ctx.pos.col + 1 -- 0-based -> 1-based
+                                while e <= #line and line:sub(e, e):match("[%w_]") do
+                                    e = e + 1
+                                end
+                                word_end = e - 1
                             end
-                            local word_end = e - 1
+                            -- 光标右侧到词尾的这段字符
+                            local right_part = line:sub(ctx.pos.col + 1, word_end)
 
                             for _, item in ipairs(items) do
                                 local r = item.textEdit and item.textEdit.range
@@ -99,7 +109,19 @@ return {
                                     -- （指针误用 `.` 时，clangd 会把 `.` 一起替换成 `->`），
                                     -- 盲目重算起点会破坏这个修正。
                                     -- 只把终点向后扩到整个标识符末尾，消除"词中间补全"的残尾。
-                                    if word_end > r["end"].character then
+                                    -- 仅当候选项文本确实包含「光标右侧这段字符」时，才说明那是同一个
+                                    -- 标识符被光标切开的剩余部分（pri|vate -> private），此时扩到词尾；
+                                    -- 否则右侧是另一个独立标识符（CData|videoList -> CData），
+                                    -- 扩过去会把 videoList 一并吞掉（实测）。
+                                    local new_text = item.textEdit.newText
+                                        or item.insertText
+                                        or item.label
+                                        or ""
+                                    if
+                                        #right_part > 0
+                                        and word_end > r["end"].character
+                                        and new_text:find(right_part, 1, true) ~= nil
+                                    then
                                         r["end"].character = word_end
                                     end
                                 end
