@@ -76,6 +76,55 @@ return {
                 },
                 -- 打满 2 个字符才触发（原来 cmp 的 keyword_length）
                 min_keyword_length = 2,
+
+                -- 全局候选变换：blink 会先跑各 provider 自己的 transform_items，
+                -- 再跑这个全局钩子，两者不冲突（blink/cmp/sources/lib/provider/init.lua:144-146）。
+                -- 用途：修「参数占位符内接受带参函数补全，导致外层 snippet 跳转失效」。
+                -- 根因：clangd 对带参函数返回 Snippet 格式候选，接受时 blink 会调用
+                -- vim.snippet.expand()（blink/cmp/completion/accept/init.lua:62）；而 vim.snippet
+                -- 只有一个全局 _session，M.expand 直接覆盖它、不检查是否已有会话
+                -- （$VIMRUNTIME/lua/vim/snippet.lua:597），外层会话被无声顶掉。
+                -- 会话没了以后 vim.snippet.active() 恒为 false，blink 的 snippet_forward
+                -- 随即返回 false（blink/cmp/init.lua:450），外层参数列表再也跳不回去。
+                -- 注意：无参函数不受影响 —— 其 snippet 只含纯文本，blink 在 accept 阶段会
+                -- 先行降级为 PlainText（accept/init.lua:29-45），压根不建会话。
+                -- 对策：会话活跃期间把这类候选也降级为纯文本，不建立嵌套会话。
+                -- 形参声明（${1:int a}）作为实参本就无法原样使用，故只保留第一个 '(' 之前的部分，
+                -- 交由 auto_brackets 补出 () 并把光标送进括号。
+                transform_items = function(_, items)
+                    if not vim.snippet.active() then
+                        return items
+                    end
+
+                    -- blink 内部模块；取不到就原样放行，避免其内部结构变动导致补全整体失效
+                    local ok, utils = pcall(require, "blink.cmp.sources.snippets.utils")
+                    if not ok then
+                        return items
+                    end
+
+                    local snippet_format = vim.lsp.protocol.InsertTextFormat.Snippet
+                    local plain_format = vim.lsp.protocol.InsertTextFormat.PlainText
+
+                    for _, item in ipairs(items) do
+                        local edit = item.textEdit
+                        if item.insertTextFormat == snippet_format and edit and edit.newText then
+                            local parsed = utils.safe_parse(edit.newText)
+                            -- 多行 snippet 不降级：多行缩进由 snippet 引擎负责，改成纯文本会丢基准缩进
+                            -- （blink 在 accept 阶段也是这么取舍的，见 accept/init.lua:36-38）
+                            if parsed then
+                                local plain = tostring(parsed)
+                                if not plain:find("\n", 1, true) then
+                                    local name = plain:match("^([^%(]*)")
+                                    edit.newText = (name and #name > 0) and name or plain
+                                    item.insertTextFormat = plain_format
+                                end
+                            end
+                        end
+                    end
+
+                    return items
+                end,
+
                 providers = {
                     lsp = {
                         -- clangd 的 textEdit.range 只覆盖"光标之前的前缀"，
