@@ -481,7 +481,7 @@ map("n", "<leader>hi", function()
     vim.list_extend(new_lines, vim.split(impl, "\n", { plain = true }))
     vim.api.nvim_buf_set_lines(0, last, last, false, new_lines)
     vim.api.nvim_win_set_cursor(0, { last + 3, 0 }) -- 光标落在 {} 内
-end, { desc = "生成函数实现到源文件" })
+end, { desc = "生成函数实现/静态成员定义到源文件" })
 
 -- Markdown 折行开关（大表格时关掉看对齐）
 map("n", "<leader>tw", function()
