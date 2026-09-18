@@ -108,15 +108,21 @@ local function node_covers(row, col, sr, sc, er, ec)
     return row > sr and row < er
 end
 
-local function update(bufnr)
-    api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
+-- 行内括号对扫描带缓存：这段匹配的结果只依赖「行内容」，与光标位置无关，
+-- 所以插模式里光标在同一行内移动（如 Tab 跳参数占位符）时可整段复用，
+-- 免去重复的 treesitter 查询 —— 实测这是写代码掉帧的主因。
+-- 键含 bufnr，避免不同缓冲区之间串味。
+local inline_scan_cache = { bufnr = -1, row = -1, text = false, pairs = nil }
 
-    local cursor = api.nvim_win_get_cursor(0)
-    local row = cursor[1] - 1
-    local col = cursor[2]
-    local line = api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+local function scan_inline_pairs(bufnr, row, line)
+    if
+        inline_scan_cache.bufnr == bufnr
+        and inline_scan_cache.row == row
+        and inline_scan_cache.text == line
+    then
+        return inline_scan_cache.pairs
+    end
 
-    -- A) 行内栈匹配 ( ) [ ] { }
     local stack = {}
     local inline_pairs = {}
     for c = 0, #line - 1 do
@@ -138,6 +144,30 @@ local function update(bufnr)
             end
         end
     end
+
+    inline_scan_cache.bufnr = bufnr
+    inline_scan_cache.row = row
+    inline_scan_cache.text = line
+    inline_scan_cache.pairs = inline_pairs
+    return inline_pairs
+end
+
+local function update(bufnr)
+    api.nvim_buf_clear_namespace(bufnr, namespace, 0, -1)
+
+    local cursor = api.nvim_win_get_cursor(0)
+    local row = cursor[1] - 1
+    local col = cursor[2]
+    local line = api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+
+    -- 快速路径：行内没有括号类字符时两段匹配都不可能命中，省掉扫描与查树
+    -- （clear_namespace 已在函数开头执行，不会残留上一次的标记）
+    if not line:find('[%(%)%[%]{}<>"]') then
+        return
+    end
+
+    -- A) 行内栈匹配 ( ) [ ] { }（结果按行内容缓存，光标移动时整段复用）
+    local inline_pairs = scan_inline_pairs(bufnr, row, line)
 
     -- 行内最内层覆盖光标的括号对
     local best_inline
