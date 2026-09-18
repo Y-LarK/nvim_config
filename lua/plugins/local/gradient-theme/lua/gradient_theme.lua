@@ -59,6 +59,17 @@ function M.setup()
     hl("CursorLineNr", { fg = c.purple, bg = transparent, bold = true })
     hl("CursorLine", { bg = "#252838" })
     hl("Visual", { bg = c.blue, bold = true })
+    -- snippet 待替换参数占位符（Tab 依次跳转的那些参数）：
+    -- vim.snippet 的 SnippetTabstop 默认链接到 Visual，于是继承了蓝底 + bold，过于抢眼；
+    -- SnippetTabstopActive（当前所在的那个参数）又链接到 SnippetTabstop，
+    -- 所以只改前者，两者会自动一起生效。
+    -- 底色取 #252838（与 CursorLine 同色）：远比 Visual 的 #8296d4 暗，不抢眼；
+    -- 同时不设 bold，文字保持原样粗细。
+    -- 刻意不用下划线类：inline_bracket_guides 画括号作用域连线的就是单下划线，
+    -- 且其 extmark 的 priority = 120 高于 vim.snippet 未指定时的默认 0，
+    -- 同位置高亮按 priority 合并、高者覆盖同名属性，下划线会在同一条基线上重合、
+    -- 颜色也被吃掉，反而看不出占位符边界。
+    hl("SnippetTabstop", { bg = "#252838" })
     hl("Search", { fg = c.bg, bg = c.yellow })
     hl("IncSearch", { fg = c.bg, bg = c.orange })
 

@@ -91,4 +91,8 @@ vim.api.nvim_create_autocmd("FileType", {
         vim.opt_local.formatoptions:remove({ "r", "o" })
     end,
 })
-opt.guicursor = "n-v-c:block,i-ci-ve:ver25,r-cr:hor20,o:hor50"
+-- v 段同时管 Visual 与 Select 模式（guicursor 没有单独的 s 段，sm 是 showmatch）。
+-- snippet 跳转到「带默认文本」的参数占位符时，vim.snippet 会切进 Select 模式
+-- （为的是直接输入即替换整段），此时块状光标会让人误以为还在 Normal 模式，
+-- 故把 v 段设为竖线，与 insert 段保持一致。
+opt.guicursor = "n-c:block,v:ver25,i-ci-ve:ver25,r-cr:hor20,o:hor50"
