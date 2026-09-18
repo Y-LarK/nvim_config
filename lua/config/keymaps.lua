@@ -303,7 +303,55 @@ map("n", "<leader>hi", function()
     end
 
     local row = vim.api.nvim_win_get_cursor(0)[1]
-    local line = vim.api.nvim_buf_get_lines(0, row - 1, row, false)[1] or ""
+    -- 声明可能跨行（参数多时换行书写），从光标行起向下累计到括号配平或遇到 ';'，
+    -- 最多读 50 行兜底，避免异常输入时一路读到文件尾
+    local parts, depth, seen_paren = {}, 0, false
+    for i = row, math.min(row + 50, vim.api.nvim_buf_line_count(0)) do
+        local l = vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1] or ""
+        -- 去掉续行的行首缩进，避免拼接后参数中间出现一长串空格
+        -- （外层括号不可省：gsub 会返回「结果, 替换次数」两个值，
+        --   直接交给 table.insert 会把次数当成位置参数而报错）
+        table.insert(parts, (l:gsub("^%s+", "")))
+        for ch in l:gmatch("[()]") do
+            if ch == "(" then
+                depth = depth + 1
+                seen_paren = true
+            else
+                depth = depth - 1
+            end
+        end
+        if l:find(";", 1, true) then break end
+        if seen_paren and depth <= 0 then break end
+    end
+    local line = table.concat(parts, " ")
+
+    -- 向上找最近的 class/struct（函数实现与静态成员定义共用）
+    local function find_class(from_row)
+        for i = from_row, 1, -1 do
+            local l = vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1] or ""
+            local c = l:match("^%s*class%s+([%w_]+)") or l:match("^%s*struct%s+([%w_]+)")
+            if c then return c end
+        end
+        return nil
+    end
+
+    -- 找对应源文件（与 <leader>ha 相同的搜索路径）；.hpp 优先模板实现文件 .tpp/.ipp
+    local function find_source_file()
+        local dir, base = vim.fn.expand("%:p:h"), vim.fn.expand("%:t:r")
+        local cur_ext = vim.fn.expand("%:e")
+        local src_exts = { ".cc", ".cpp", ".cxx" }
+        if cur_ext:match("^hpp$") or cur_ext:match("^hh$") or cur_ext:match("^hxx$") then
+            src_exts = { ".tpp", ".ipp", ".inl", ".cc", ".cpp" }
+        end
+        for _, sdir in ipairs({ dir, dir .. "/../src", dir .. "/src" }) do
+            for _, e in ipairs(src_exts) do
+                local p = sdir .. "/" .. base .. e
+                if vim.fn.filereadable(p) == 1 then return p end
+            end
+        end
+        return nil
+    end
+
     -- 去掉行尾注释、分号、首尾空白
     local decl = line:gsub("//.*$", ""):gsub(";%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
     if decl == "" or decl:match("^#") then
@@ -313,7 +361,63 @@ map("n", "<leader>hi", function()
 
     local head, args = decl:match("^(.-)(%b())")
     if not head or not args then
-        vim.notify("无法解析函数声明", vim.log.levels.WARN)
+        -- 不是函数声明，按「静态成员变量」处理：
+        --   static std::vector<User> userVec;  →  std::vector<User> CData::userVec;
+        if not decl:match("^static%f[%W]") then
+            vim.notify("无法解析：既不是函数声明，也不是 static 成员变量", vim.log.levels.WARN)
+            return
+        end
+        -- constexpr / inline 的静态成员自 C++17 起是隐式 inline，类内定义即可，
+        -- 在源文件里再写一遍会重复定义报错，必须跳过
+        if decl:match("%f[%w]constexpr%f[%W]") or decl:match("%f[%w]inline%f[%W]") then
+            vim.notify("constexpr / inline 静态成员无需在源文件定义（C++17 起隐式 inline）", vim.log.levels.WARN)
+            return
+        end
+
+        -- 去掉 static、去掉初始化器（源文件里的定义不能再带）
+        local body = decl:gsub("^static%s+", ""):gsub("%s*=%s*.*$", "")
+        local var = body:match("([%w_]+)%s*$")
+        local vtype = var and body:sub(1, #body - #var):gsub("%s+$", "") or ""
+        if not var or vtype == "" then
+            vim.notify("未识别到变量名或类型", vim.log.levels.WARN)
+            return
+        end
+
+        local cls = find_class(row)
+        if not cls then
+            vim.notify("未找到所属 class/struct", vim.log.levels.WARN)
+            return
+        end
+        local cpp = find_source_file()
+        if not cpp then
+            vim.notify("未找到对应源文件（.cc/.cpp/.cxx 或模板实现文件）", vim.log.levels.WARN)
+            return
+        end
+
+        vim.cmd("e " .. vim.fn.fnameescape(cpp))
+        -- 已有定义则只跳转，不重复生成
+        local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+        for i, l in ipairs(lines) do
+            if l:find(cls .. "::" .. var, 1, true) then
+                vim.api.nvim_win_set_cursor(0, { i, 0 })
+                vim.notify("定义已存在，已跳转", vim.log.levels.INFO)
+                return
+            end
+        end
+
+        -- 插到第一个「类名:: 且带参数列表」的函数定义之前，
+        -- 让变量定义集中在 include 之后、函数之前
+        local at = #lines
+        for i, l in ipairs(lines) do
+            if l:match("^%s*" .. vim.pesc(cls) .. "%s*::") and l:find("(", 1, true) then
+                at = i - 1
+                break
+            end
+        end
+        local def = vtype .. " " .. cls .. "::" .. var .. ";"
+        vim.api.nvim_buf_set_lines(0, at, at, false, { def })
+        vim.api.nvim_win_set_cursor(0, { at + 1, 0 })
+        vim.notify("已生成静态成员定义：" .. def, vim.log.levels.INFO)
         return
     end
     local tail = decl:sub(#head + #args + 1)
@@ -340,37 +444,16 @@ map("n", "<leader>hi", function()
         :gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 
     -- 所属类：向上找最近的 class/struct
-    local cls
-    for i = row, 1, -1 do
-        local l = vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1] or ""
-        cls = l:match("^%s*class%s+([%w_]+)") or l:match("^%s*struct%s+([%w_]+)")
-        if cls then break end
-    end
+    local cls = find_class(row)
     if not cls then
         vim.notify("未找到所属 class/struct", vim.log.levels.WARN)
         return
     end
 
-    -- 找对应源文件（与 <leader>ha 相同的搜索路径）；.hpp 优先模板实现文件 .tpp/.ipp
-    local dir, base = vim.fn.expand("%:p:h"), vim.fn.expand("%:t:r")
-    local cur_ext = vim.fn.expand("%:e")
-    local src_exts = { ".cc", ".cpp", ".cxx" }
-    if cur_ext:match("^hpp$") or cur_ext:match("^hh$") or cur_ext:match("^hxx$") then
-        src_exts = { ".tpp", ".ipp", ".inl", ".cc", ".cpp" }
-    end
-    local cpp
-    for _, sdir in ipairs({ dir, dir .. "/../src", dir .. "/src" }) do
-        for _, e in ipairs(src_exts) do
-            local p = sdir .. "/" .. base .. e
-            if vim.fn.filereadable(p) == 1 then
-                cpp = p
-                break
-            end
-        end
-        if cpp then break end
-    end
+    -- 找对应源文件
+    local cpp = find_source_file()
     if not cpp then
-        vim.notify("未找到源文件 " .. base .. "（" .. table.concat(src_exts, "/") .. "）", vim.log.levels.WARN)
+        vim.notify("未找到对应源文件（.cc/.cpp/.cxx 或模板实现文件）", vim.log.levels.WARN)
         return
     end
 
