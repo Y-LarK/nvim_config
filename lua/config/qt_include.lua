@@ -120,16 +120,78 @@ function M.rewrite(text)
     return head .. open .. public .. close .. tail
 end
 
+--- 取出 #include 的路径（去掉尖括号/引号），非 include 文本返回 nil
+--- @param text string
+--- @return string|nil
+local function include_path(text)
+    if type(text) ~= "string" then
+        return nil
+    end
+    return text:match('^#include%s*[<"]([^>"]*)[>"]')
+end
+
+--- 收集 buffer 里已经 include 过的头文件路径
+--- 行首锚定，故注释里的 "// #include <x>" 不会误命中
+--- @param bufnr integer|nil
+--- @return table<string, boolean>|nil buffer 读不到时返回 nil
+local function collect_existing_includes(bufnr)
+    if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+        return nil
+    end
+    local ok, lines = pcall(vim.api.nvim_buf_get_lines, bufnr, 0, -1, false)
+    if not ok then
+        return nil
+    end
+
+    local existing = {}
+    for _, line in ipairs(lines) do
+        local inc = line:match('^%s*#include%s*[<"]([^>"]+)[>"]')
+        if inc then
+            existing[inc] = true
+        end
+    end
+    return existing
+end
+
 --- 就地改写补全项里的 include 插入，返回同一个 items 表
+---
+--- 顺带去重：clangd 判断「这个头是否已包含」依赖当时的 preamble / AST 状态，
+--- 文件被编辑过之后并不稳定 —— 实测同一份内容，didChange 后立即查是「已包含」、
+--- 3 秒后再查又变成「未包含」，于是同一个头被反复插入（改写前插的是 qlabel.h，
+--- 与文件里手写的 QLabel 拼写不同，看着像两个头；改写后两行一模一样才刺眼）。
+--- 这里按 buffer 的实际内容兜底：改写前或改写后的路径只要已在文件里，
+--- 就丢掉这条编辑 —— 符号本身照常补全，只是不再插重复的头。
 --- @param items blink.cmp.CompletionItem[]
+--- @param bufnr integer|nil 用于查已包含的头；缺失时退化为只改写、不去重
 --- @return blink.cmp.CompletionItem[]
-function M.rewrite_items(items)
+function M.rewrite_items(items, bufnr)
+    -- 懒加载：候选项都没带 include 编辑时，连 buffer 都不读
+    local existing = nil
+
     for _, item in ipairs(items) do
         -- additionalTextEdits 是 clangd 用来插 #include 的字段（LSP 原始命名，
         -- blink 在 accept 阶段同样按这个名字取，见 completion/accept/init.lua:11）。
         -- 这里只碰 include，不动 textEdit —— 那是符号本身的替换文本。
-        for _, edit in ipairs(item.additionalTextEdits or {}) do
-            edit.newText = M.rewrite(edit.newText)
+        local edits = item.additionalTextEdits
+        if edits then
+            -- 倒序：删元素时不影响尚未处理的索引
+            for i = #edits, 1, -1 do
+                local edit = edits[i]
+                local original = include_path(edit.newText)
+                if original then
+                    if existing == nil then
+                        existing = collect_existing_includes(bufnr) or {}
+                    end
+
+                    local rewritten = M.rewrite(edit.newText)
+                    local replaced = include_path(rewritten)
+                    if existing[original] or (replaced and existing[replaced]) then
+                        table.remove(edits, i)
+                    else
+                        edit.newText = rewritten
+                    end
+                end
+            end
         end
     end
     return items

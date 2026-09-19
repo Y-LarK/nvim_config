@@ -197,7 +197,9 @@ return {
                             -- （qpushbutton.h -> QPushButton），缘由见 config/qt_include.lua 头部注释
                             local ok_qt, qt_include = pcall(require, "config.qt_include")
                             if ok_qt then
-                                qt_include.rewrite_items(items)
+                                -- 传 bufnr：rewrite_items 会据此丢弃「文件里已经有这个头」
+                                -- 的重复 include 编辑（clangd 的去重状态在编辑后不可靠）
+                                qt_include.rewrite_items(items, ctx.bufnr)
                             end
 
                             return items
