@@ -192,6 +192,14 @@ return {
                                     end
                                 end
                             end
+
+                            -- 把 clangd 插入的 Qt 私有头改写成公开头
+                            -- （qpushbutton.h -> QPushButton），缘由见 config/qt_include.lua 头部注释
+                            local ok_qt, qt_include = pcall(require, "config.qt_include")
+                            if ok_qt then
+                                qt_include.rewrite_items(items)
+                            end
+
                             return items
                         end,
                     },
