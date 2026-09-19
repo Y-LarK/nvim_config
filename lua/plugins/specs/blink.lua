@@ -206,6 +206,20 @@ return {
                 },
             },
 
+            -- cmdline 模式（`:` 命令、`/` 搜索）的独立覆盖。
+            -- blink 内置了一份 cmdline override（blink/cmp/config/init.lua:46-55），其中
+            -- completion.menu.auto_show = false —— 于是命令行下候选照常拉取、幽灵文字照常显示，
+            -- 菜单却被抑制，必须手动 <C-n>/<C-p>/<C-space> 才弹。
+            -- 这里只把该项翻回 true；blink.lib.config 是按模式深合并（blink/lib/config.lua:155
+            -- vim.tbl_deep_extend('force', per_mode[m] or {}, tbl)），故其余字段（trigger、
+            -- ghost_text、list.selection 等）仍走那份默认，不在此重复声明 —— 重复声明反而会
+            -- 在将来上游改动这些默认值时把它们冻住。
+            -- 注意 min_keyword_length = 2 也由本文件的全局 sources 继承过去，`:e` 这类 1 个字符的
+            -- 输入连幽灵文字都不会有，打到第 2 个字符才出候选。
+            cmdline = {
+                completion = { menu = { auto_show = true } },
+            },
+
             signature = { enabled = true },
             -- 本机有 cargo，使用 Rust fuzzy matcher
             fuzzy = { implementation = "prefer_rust_with_warning" },
