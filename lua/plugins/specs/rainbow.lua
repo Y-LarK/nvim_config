@@ -25,6 +25,7 @@ return {
                 "RainbowDelimiterCyan",
             },
         }
+        require("config.rainbow_level").setup()
         require("config.inline_bracket_guides").setup()
     end,
 }

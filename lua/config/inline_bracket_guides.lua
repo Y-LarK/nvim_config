@@ -30,7 +30,6 @@ local rainbow_highlights = {
     "RainbowDelimiterViolet",
     "RainbowDelimiterCyan",
 }
-local rainbow_highlight_set = {}
 local supported_filetypes = {
     c = true,
     cpp = true,
@@ -47,10 +46,6 @@ local non_code_node_types = {
     raw_string_literal = true,
 }
 
-for _, group in ipairs(rainbow_highlights) do
-    rainbow_highlight_set[group] = true
-end
-
 local function refresh_highlights()
     for _, group in ipairs(rainbow_highlights) do
         local color = api.nvim_get_hl(0, { name = group, link = false }).fg or "#9098b8"
@@ -63,18 +58,14 @@ local function refresh_highlights()
     end
 end
 
+-- 从语法树算层级，不读 rainbow 的 extmark：补全菜单可见时 rainbow 会跳过高亮更新
+-- 且事后不补刷，此时查 extmark 会拿到过期颜色，导引线就与括号本身脱色。
 local function get_rainbow_group(bufnr, row, col)
-    local extmarks = api.nvim_buf_get_extmarks(bufnr, -1, { row, col }, { row, col }, {
-        type = "highlight",
-        details = true,
-    })
-    for _, extmark in ipairs(extmarks) do
-        local details = extmark[4]
-        if details and rainbow_highlight_set[details.hl_group] then
-            return details.hl_group
-        end
+    local level = require("config.rainbow_level").level_at(bufnr, row, col)
+    if not level then
+        return "RainbowDelimiterViolet"
     end
-    return "RainbowDelimiterViolet"
+    return rainbow_highlights[(level - 1) % #rainbow_highlights + 1]
 end
 
 -- col 处的括号是否属于真实代码（排除字符串/注释/预处理）
