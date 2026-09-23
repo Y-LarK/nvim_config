@@ -223,43 +223,105 @@ map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })
 map("n", "<leader>/", "gcc", { remap = true, desc = "切换行注释 //" })
 map("v", "<leader>/", "gb", { remap = true, desc = "切换块注释 /* */" })
 
--- Markdown 链接跳转：锚点跳转 / URL 浏览器打开
-map("n", "<leader>mj", function()
-    -- 1) treesitter 精确获取光标下的 link_destination
-    local node = vim.treesitter.get_node()
-    if node then
-        while node do
-            if node:type() == "link_destination" then
-                local url = vim.treesitter.get_node_text(node, 0)
-                if url:match("^https?://") or url:match("^www%.") then
-                    vim.fn.jobstart({ "xdg-open", url }, { detach = true })
-                    return
-                elseif url:match("^#") then
-                    local text = url:sub(2):gsub("%-", " ")
-                    local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
-                    vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
-                    vim.fn.search(pat, "w")
-                    return
-                end
-            end
-            node = node:parent()
+-- Markdown 链接跳转：文件跳转 / 锚点跳转 / URL 浏览器打开
+local function md_jump_to_heading(text)
+    local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
+    vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
+    vim.fn.search(pat, "w")
+end
+
+-- [[WikiLink]] 按文档名跳转：先找同目录下的 <name>.md，找不到再在当前工作目录下递归找，
+-- 都找不到就警告，不新建文件
+local function md_handle_wikilink(name)
+    local candidate = vim.fn.simplify(vim.fn.expand("%:p:h") .. "/" .. name .. ".md")
+    if vim.fn.filereadable(candidate) == 0 then
+        local matches = vim.fn.globpath(vim.fn.getcwd(), "**/" .. vim.fn.fnameescape(name) .. ".md", false, true)
+        candidate = matches[1]
+    end
+    if not candidate or vim.fn.filereadable(candidate) == 0 then
+        vim.notify("未找到文档：" .. name .. ".md", vim.log.levels.WARN)
+        return
+    end
+    vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
+    vim.cmd("e " .. vim.fn.fnameescape(candidate))
+end
+
+-- 在当前行按字节列查找光标所在的 [[WikiLink]]，返回其中的文档名
+local function md_wikilink_at(line, col)
+    local search_from = 1
+    while true do
+        local s, e, name = line:find("%[%[(.-)%]%]", search_from)
+        if not s then
+            return nil
         end
+        if col >= s and col <= e then
+            return name
+        end
+        search_from = e + 1
+    end
+end
+
+-- 处理单个链接目标：URL 用浏览器打开，#anchor 在本文件内跳转，
+-- 其余视为相对当前文件的路径（可带 #anchor 后缀），跳转后若有锚点继续在目标文件内跳转
+local function md_handle_link(dest)
+    if not dest or dest == "" then
+        return false
+    end
+    if dest:match("^https?://") or dest:match("^www%.") then
+        vim.fn.jobstart({ "xdg-open", dest }, { detach = true })
+        return true
+    end
+    if dest:match("^#") then
+        md_jump_to_heading(dest:sub(2):gsub("%-", " "))
+        return true
+    end
+    local path, anchor = dest:match("^([^#]*)#?(.*)$")
+    if path == "" then
+        return false
+    end
+    local target = vim.fn.simplify(vim.fn.expand("%:p:h") .. "/" .. path)
+    if vim.fn.filereadable(target) == 0 then
+        vim.notify("文件不存在：" .. target, vim.log.levels.WARN)
+        return true
+    end
+    vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
+    vim.cmd("e " .. vim.fn.fnameescape(target))
+    if anchor ~= "" then
+        md_jump_to_heading(anchor:gsub("%-", " "))
+    end
+    return true
+end
+
+map("n", "<leader>mj", function()
+    -- 1) treesitter 精确获取光标下的节点：[[WikiLink]] (shortcut_link) 或 [text](dest) (link_destination)
+    local node = vim.treesitter.get_node()
+    while node do
+        if node:type() == "shortcut_link" then
+            local text_node = node:named_child(0)
+            if text_node then
+                md_handle_wikilink(vim.treesitter.get_node_text(text_node, 0))
+                return
+            end
+        elseif node:type() == "link_destination" then
+            if md_handle_link(vim.treesitter.get_node_text(node, 0)) then
+                return
+            end
+        end
+        node = node:parent()
     end
     -- 2) 降级：行内正则（光标不在 treesitter 节点时也能用）
     local line = vim.api.nvim_get_current_line()
-    local ext_url = line:match("%[.-%]%((https?://[^%)]+)%)")
-    if ext_url then
-        vim.fn.jobstart({ "xdg-open", ext_url }, { detach = true })
+    local col = vim.fn.col(".")
+    local wiki_name = md_wikilink_at(line, col)
+    if wiki_name then
+        md_handle_wikilink(wiki_name)
         return
     end
-    local anchor = line:match("%[.-%]%((#.-)%)")
-    if anchor then
-        local text = anchor:sub(2):gsub("%-", " ")
-        local pat = [[^#\+\s\+]] .. vim.pesc(text) .. [[\>]]
-        vim.cmd("normal! m'") -- 记入跳转列表，Ctrl-o 可回
-        vim.fn.search(pat, "w")
+    local dest = line:match("%[.-%]%((.-)%)")
+    if dest then
+        md_handle_link(dest)
     end
-end, { desc = "跳转 Markdown 锚点 / 打开链接" })
+end, { desc = "跳转 Markdown 文件/锚点/WikiLink / 打开链接" })
 
 -- 头文件 ↔ 源文件切换
 map("n", "<leader>ha", function()
