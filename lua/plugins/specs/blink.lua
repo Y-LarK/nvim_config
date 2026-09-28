@@ -37,16 +37,25 @@ return {
             },
 
             completion = {
-                -- 屏蔽 '<' 作为触发字符（本列表会整体覆盖默认值，故默认三项须列全）。
-                -- 原因：clangd 虽把 '<' 注册为 triggerCharacter，但在 std::cout<< 这类位置
-                -- 它以 TriggerCharacter 模式返回**空结果且不声明 incomplete**，blink 遂把这个
-                -- 空结果当成一次完整结果缓存下来；此后继续输入 M/y/C 时 ctx.id 不递增，
-                -- list:is_valid_for_context() 判定「缓存仍然有效」，于是整个 <<MyC 过程
-                -- 再也不会向 clangd 发请求，菜单里只剩 snippet 候选。
-                -- 屏蔽后输入 '<' 会走 trigger.hide() 清空 context，下一次击键 ctx.id 递增，
-                -- 缓存失效从而强制重新请求。'<' 之后本来也没有可用候选，不弹菜单无损失。
+                -- 屏蔽 '<' 与 '>' 作为触发字符（本列表会整体覆盖默认值，故默认三项须列全）。
+                -- 共性根因：clangd 把两者都注册为 triggerCharacter（实测 triggerCharacters =
+                -- { ".", "<", ">", ":", '"', "/", "*" }），但在比较 / 流操作符这类位置，它以
+                -- TriggerCharacter 模式返回**空结果且 isIncomplete = false**（实测
+                -- `matrix[row][col]` 后面刚打完 '>' 时返回 { items = [], isIncomplete = false }），
+                -- blink 遂把这个空结果当成一次完整结果缓存下来；此后继续输入关键字字符时
+                -- ctx.id 不递增（trigger/init.lua:247 仅在 context 为 nil 或显式指定 providers
+                -- 时才递增），list:is_valid_for_context() 因 id 相同且 isIncomplete = false
+                -- 判定「缓存仍然有效」，于是整个后续输入过程再也不会向 clangd 发请求，
+                -- 菜单里只剩 snippet 候选。
+                --   '<' 实例：`std::cout<<MyC` 补不出变量
+                --   '>' 实例：`matrix[row][col]>tar` 补不出 target（实测同位置改用 Invoked
+                --             请求能正常返回 target，证明问题只出在这次被缓存的空结果上）
+                -- 屏蔽后输入该字符会走 trigger.hide() 清空 context（它不是关键字字符），
+                -- 下一次击键时 context 为 nil -> ctx.id 递增 -> 缓存失效从而强制重新请求。
+                -- 代价：打完 '->' 不再立刻弹成员菜单，但继续输入一个字母即以 Invoked 重新请求
+                -- clangd，成员候选照常返回，功能上无实质损失。
                 trigger = {
-                    show_on_blocked_trigger_characters = { " ", "\n", "\t", "<" },
+                    show_on_blocked_trigger_characters = { " ", "\n", "\t", "<", ">" },
                 },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
                 ghost_text = { enabled = true },
