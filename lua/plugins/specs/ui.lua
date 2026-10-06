@@ -256,6 +256,64 @@ return {
             -- 而本机主题给 StatusLineNC 设了 #1e2030 的实色底，于是整条被染回实心色带，
             -- 遮住终端的半透明模糊背景。这里把兜底也设为透明（已实测：设完底色消失）。
             vim.api.nvim_set_hl(0, "TabLineFill", { bg = "NONE" })
+
+            -- 期望版式：标签栏 -> 下划线 -> 空白 -> 编辑区。
+            -- 线必须画在 tabline 这一行内部（贴其底部），因为 nvim 的 tabline 与 winbar
+            -- 都只有一行（实测塞换行符不会换行），没法在两者之间再插一行。
+            -- 所以：underline 挂在标签栏各组上，winbar 则专门留作那行空白。
+            -- 给某个 BufferLine* 组补上下划线
+            local function add_underline(name)
+                local hl = vim.api.nvim_get_hl(0, { name = name })
+                if hl.underline then return end
+                hl.underline = true
+                -- 线色，取自主题色板由浅到深： #3a3d4e > #2c2f3c > #252838 > #1e2030
+                hl.sp = "#252838"
+                -- 关键：bufferline 建的组都带 default = true 标记。若把它原样 set 回去，
+                -- nvim 会当成「默认定义」，只在组未定义时生效，于是不会覆盖已有高亮，
+                -- underline 白加（这一点是实测踩出来的，读回值纹丝不动）。
+                hl.default = false
+                vim.api.nvim_set_hl(0, name, hl)
+            end
+
+            -- 不能只列举主要组：图标（devicon）用的是各自独立的高亮组
+            -- （BufferLine*Icon*），漏掉它们下划线就会在图标处断开。
+            for _, name in ipairs(vim.fn.getcompletion("BufferLine", "highlight")) do
+                add_underline(name)
+            end
+
+            -- 图标组是 bufferline 首次渲染时懒创建并缓存（icon_hl_cache）的，
+            -- setup 那一刻根本不存在，靠 autocmd 补会晚一拍 —— 表现为
+            -- 「刚打开时线是断的，按 Alt+,/Alt+. 切一次标签后才连上」。
+            -- 所以直接包住它的创建函数：哪一组刚建出来就立刻补上。
+            -- 注意：此处依赖 bufferline 内部 API，插件升级后需要重测。
+            local bl_highlights = require("bufferline.highlights")
+            local orig_set_icon_highlight = bl_highlights.set_icon_highlight
+            bl_highlights.set_icon_highlight = function(...)
+                local icon_hl = orig_set_icon_highlight(...)
+                if type(icon_hl) == "string" then add_underline(icon_hl) end
+                return icon_hl
+            end
+
+            -- 标签栏与编辑区之间空一行。winbar 是窗口局部选项，用 autocmd 按 buftype
+            -- 决定是否显示，避免 telescope / 文件树 / 终端浮窗里也冒出一行空白。
+            -- 注意：高亮前缀必须写在 winbar 字符串最外层 —— 写成 "%{表达式返回 '%#Group#'}"
+            -- 不生效，求值结果不会被二次解析成高亮切换（已实测）。
+            vim.api.nvim_set_hl(0, "TabLineSpacer", { bg = "NONE" })
+
+            local function apply_tabline_spacer()
+                if vim.bo.buftype == "" then
+                    -- %= 用空格填满剩余宽度且沿用当前高亮组，不必手算列数
+                    vim.wo.winbar = "%#TabLineSpacer#%="
+                else
+                    vim.wo.winbar = ""
+                end
+            end
+
+            vim.api.nvim_create_autocmd({ "BufEnter", "WinEnter", "FileType" }, {
+                group = vim.api.nvim_create_augroup("TabLineSpacer", { clear = true }),
+                callback = apply_tabline_spacer,
+            })
+            apply_tabline_spacer()
         end,
     },
 }
