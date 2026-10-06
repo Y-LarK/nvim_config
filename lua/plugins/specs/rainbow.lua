@@ -2,7 +2,7 @@ return {
     "HiPhish/rainbow-delimiters.nvim",
     cond = not vim.g.vscode,
     lazy = false,
-    git = { submodules = false }, -- 禁用 gitlab 子模块（仅测试用）
+    submodules = false, -- 顶层字段（lazy 只读 plugin.submodules）：子模组只有 .luals 类型定义与 busted 测试 shim，运行无关
     dependencies = { "nvim-treesitter/nvim-treesitter" },
     config = function()
         local rb = require("rainbow-delimiters")
