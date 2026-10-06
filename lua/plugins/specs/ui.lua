@@ -151,101 +151,111 @@ return {
                 show_buffer_icons = true, -- 显示文件类型图标 (需 Nerd Font)
                 modified_icon = "●", -- 文件被修改但未保存时的图标
             },
-            -- 配色取自本地主题 gradient_theme（lua/plugins/local/gradient-theme/lua/gradient_theme.lua）。
-            -- 原先这里硬编码的是 Catppuccin Mocha 色值（#1e1e2e / #313244 / #89b4fa / #6c7086），
-            -- 与本机主题和 lualine 的自定义色板不是一套，导致标签栏和状态栏色系对撞。
-            -- 关键锚点（均已实测确认）：
-            --   #252838 = lualine_c 底色，即状态栏中段      -> 标签栏底色也用它，上下连成一体
-            --   #3a3d4e = StatusLine / lualine_b 底色        -> 用作选中标签底色
-            --   #cfacff = purple，lualine 的强调色           -> 用作选中标签文字色
-            --   #b8c0d8 = comment                            -> 未选中标签文字色
+            -- 目标是 VSCode 风格的标签栏，并与终端「半透明 + 模糊」的背景融合。
+            -- 关键约束：nvim 的高亮没有 alpha 通道，背景只有「实色」与「NONE（全透明）」两种状态，
+            -- 不存在半透明。所以这里所有背景一律 NONE，让终端的模糊背景透出来；
+            -- 选中与否只靠文字颜色 + 左侧指示竖条区分。
+            -- 代价：VSCode 那种「当前标签盖一层淡底色」无法还原，那是半透明才有的效果。
             highlights = {
-                -- 底色层：标签栏空隙与未选中标签统一用状态栏中段底色
+                -- 整条不画底，露出终端背景
                 fill = {
-                    bg = "#252838",
+                    bg = "NONE",
                 },
+                -- 未选中标签：灰字
                 background = {
-                    fg = "#b8c0d8",
-                    bg = "#252838",
+                    fg = "#8f97b0",
+                    bg = "NONE",
                 },
+                -- 分屏中可见但非当前的标签
                 buffer_visible = {
-                    fg = "#dce4f0",
-                    bg = "#252838",
+                    fg = "#b8c0d8",
+                    bg = "NONE",
                 },
+                -- 当前标签：纯白加粗（VSCode 的当前标签文字最亮）
                 buffer_selected = {
-                    fg = "#cfacff",
-                    bg = "#3a3d4e",
-                    bold = true, -- 去掉了原来的 italic：主题里 UI 组不用斜体
+                    fg = "#ffffff",
+                    bg = "NONE",
+                    bold = true,
                 },
-                -- 分隔符（slant 斜角）：选中项染成自身底色向外过渡，未选中项融进底色
+                -- 标签之间的分隔线：VSCode 有淡竖线，用 thin 的细竖线 + 暗色模拟
                 separator = {
-                    fg = "#252838",
-                    bg = "#252838",
+                    fg = "#3a3d4e",
+                    bg = "NONE",
                 },
                 separator_visible = {
-                    fg = "#252838",
-                    bg = "#252838",
-                },
-                separator_selected = {
                     fg = "#3a3d4e",
-                    bg = "#252838",
+                    bg = "NONE",
+                },
+                -- thin 模式下分隔符统一走 BufferLineSeparator 组，这组实际不生效，留着以防改回 slant
+                separator_selected = {
+                    fg = "NONE",
+                    bg = "NONE",
                 },
                 -- 未保存标记与关闭按钮
-                -- （当前 show_buffer_close_icons = false 用不到 close_button，先备好避免以后开启时串色）
+                -- （当前 show_buffer_close_icons = false 用不到 close_button）
                 modified = {
                     fg = "#ffc880",
-                    bg = "#252838",
+                    bg = "NONE",
                 },
                 modified_selected = {
                     fg = "#ffc880",
-                    bg = "#3a3d4e",
+                    bg = "NONE",
                 },
                 close_button = {
-                    fg = "#b8c0d8",
-                    bg = "#252838",
+                    fg = "#8f97b0",
+                    bg = "NONE",
                 },
                 close_button_selected = {
-                    fg = "#cfacff",
-                    bg = "#3a3d4e",
+                    fg = "#ffffff",
+                    bg = "NONE",
                 },
+                -- 当前标签左侧的指示竖条：近似 VSCode 当前标签的高亮线（位置不同，在左侧）
                 indicator_selected = {
                     fg = "#cfacff",
-                    bg = "#3a3d4e",
+                    bg = "NONE",
                 },
-                -- 诊断：未选中标签只改底色（不抢眼），选中标签用主题诊断色
+                -- 诊断：未选中标签只留图标色，当前标签用主题诊断色
                 error = {
-                    bg = "#252838",
+                    bg = "NONE",
                 },
                 error_selected = {
-                    fg = "#ff6b6b", -- 原 #f87171 是 Tailwind 红，非本主题色
-                    bg = "#3a3d4e",
+                    fg = "#ff6b6b",
+                    bg = "NONE",
                     bold = true,
                 },
                 warning = {
-                    bg = "#252838",
+                    bg = "NONE",
                 },
                 warning_selected = {
-                    fg = "#ffc880", -- 原 #eab308 是 Tailwind 黄，非本主题色
-                    bg = "#3a3d4e",
+                    fg = "#ffc880",
+                    bg = "NONE",
                     bold = true,
                 },
                 info = {
-                    bg = "#252838",
+                    bg = "NONE",
                 },
                 info_selected = {
                     fg = "#a4f4ff",
-                    bg = "#3a3d4e",
+                    bg = "NONE",
                     bold = true,
                 },
                 hint = {
-                    bg = "#252838",
+                    bg = "NONE",
                 },
                 hint_selected = {
                     fg = "#8296d4",
-                    bg = "#3a3d4e",
+                    bg = "NONE",
                     bold = true,
                 },
             },
         },
+        config = function(_, opts)
+            require("bufferline").setup(opts)
+            -- 只把 BufferLine* 组的 bg 设成 NONE 还不够：渲染 tabline 时，背景为 NONE
+            -- 的单元格会落到兜底高亮 TabLineFill 上。它 link 到 TabLine -> StatusLineNC，
+            -- 而本机主题给 StatusLineNC 设了 #1e2030 的实色底，于是整条被染回实心色带，
+            -- 遮住终端的半透明模糊背景。这里把兜底也设为透明（已实测：设完底色消失）。
+            vim.api.nvim_set_hl(0, "TabLineFill", { bg = "NONE" })
+        end,
     },
 }
