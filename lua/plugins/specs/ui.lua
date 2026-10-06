@@ -125,14 +125,18 @@ return {
         cond = not vim.g.vscode,
         version = "*",
         dependencies = "nvim-tree/nvim-web-devicons",
-        cmd = {
-            "BufferLineCyclePrev",
-            "BufferLineCycleNext",
-        },
+        -- 注意：不能用 cmd 懒加载。bufferline 靠 setup 时接管 tabline 来画标签栏，
+        -- 用 cmd 会导致启动时插件未加载、顶部空白，直到手动执行切换命令才"冒出来"。
+        event = "VeryLazy",
         opts = {
             options = {
                 mode = "buffers",
-                separator_style = "curve",
+                -- 不能用 "curve"：它不是合法值，源码 ui.lua:256 (sep_chars[style] or sep_chars.thin)
+                -- 会静默降级成 thin，且不报错。合法值仅：
+                -- thin | thick | slant | slope | padded_slant | padded_slope
+                -- 用 thin：标签是规整矩形，不做斜角/三角造型。
+                -- 配合下面 separator 的颜色 = 底色，视觉上标签之间只有间距、不出现竖线。
+                separator_style = "thin",
                 always_show_bufferline = true,
                 show_buffer_close_icons = false,
                 show_close_icon = false,
@@ -147,46 +151,98 @@ return {
                 show_buffer_icons = true, -- 显示文件类型图标 (需 Nerd Font)
                 modified_icon = "●", -- 文件被修改但未保存时的图标
             },
+            -- 配色取自本地主题 gradient_theme（lua/plugins/local/gradient-theme/lua/gradient_theme.lua）。
+            -- 原先这里硬编码的是 Catppuccin Mocha 色值（#1e1e2e / #313244 / #89b4fa / #6c7086），
+            -- 与本机主题和 lualine 的自定义色板不是一套，导致标签栏和状态栏色系对撞。
+            -- 关键锚点（均已实测确认）：
+            --   #252838 = lualine_c 底色，即状态栏中段      -> 标签栏底色也用它，上下连成一体
+            --   #3a3d4e = StatusLine / lualine_b 底色        -> 用作选中标签底色
+            --   #cfacff = purple，lualine 的强调色           -> 用作选中标签文字色
+            --   #b8c0d8 = comment                            -> 未选中标签文字色
             highlights = {
+                -- 底色层：标签栏空隙与未选中标签统一用状态栏中段底色
                 fill = {
-                    bg = "#1e1e2e", -- 整个标签栏的背景色（空隙处）
+                    bg = "#252838",
                 },
                 background = {
-                    fg = "#6c7086",
-                    bg = "#1e1e2e",
+                    fg = "#b8c0d8",
+                    bg = "#252838",
+                },
+                buffer_visible = {
+                    fg = "#dce4f0",
+                    bg = "#252838",
                 },
                 buffer_selected = {
-                    fg = "#89b4fa", -- 选中文件的文字颜色
-                    bg = "#313244", -- 选中文件的背景色
-                    bold = true,
-                    italic = true,
+                    fg = "#cfacff",
+                    bg = "#3a3d4e",
+                    bold = true, -- 去掉了原来的 italic：主题里 UI 组不用斜体
+                },
+                -- 分隔符（slant 斜角）：选中项染成自身底色向外过渡，未选中项融进底色
+                separator = {
+                    fg = "#252838",
+                    bg = "#252838",
+                },
+                separator_visible = {
+                    fg = "#252838",
+                    bg = "#252838",
                 },
                 separator_selected = {
-                    fg = "#1e1e2e", -- 选中标签两侧分隔符的颜色
+                    fg = "#3a3d4e",
+                    bg = "#252838",
                 },
-                -- 1. 未选中的标签背景下的诊断信息
-                warning = {
-                    bg = "#1e1e2e", -- 这里填你未选中标签的背景色
+                -- 未保存标记与关闭按钮
+                -- （当前 show_buffer_close_icons = false 用不到 close_button，先备好避免以后开启时串色）
+                modified = {
+                    fg = "#ffc880",
+                    bg = "#252838",
                 },
+                modified_selected = {
+                    fg = "#ffc880",
+                    bg = "#3a3d4e",
+                },
+                close_button = {
+                    fg = "#b8c0d8",
+                    bg = "#252838",
+                },
+                close_button_selected = {
+                    fg = "#cfacff",
+                    bg = "#3a3d4e",
+                },
+                indicator_selected = {
+                    fg = "#cfacff",
+                    bg = "#3a3d4e",
+                },
+                -- 诊断：未选中标签只改底色（不抢眼），选中标签用主题诊断色
                 error = {
-                    bg = "#1e1e2e",
-                },
-                info = {
-                    bg = "#1e1e2e",
-                },
-                hint = {
-                    bg = "#1e1e2e",
-                },
-                -- 2. 选中状态下的标签背景下的诊断信息 (最关键，因为图片中 ui.lua 是选中的)
-                warning_selected = {
-                    fg = "#eab308", -- 图标颜色
-                    bg = "#313244", -- 这里填你【选中标签】的背景色
-                    bold = true,
-                    italic = true,
+                    bg = "#252838",
                 },
                 error_selected = {
-                    fg = "#f87171",
-                    bg = "#313244",
+                    fg = "#ff6b6b", -- 原 #f87171 是 Tailwind 红，非本主题色
+                    bg = "#3a3d4e",
+                    bold = true,
+                },
+                warning = {
+                    bg = "#252838",
+                },
+                warning_selected = {
+                    fg = "#ffc880", -- 原 #eab308 是 Tailwind 黄，非本主题色
+                    bg = "#3a3d4e",
+                    bold = true,
+                },
+                info = {
+                    bg = "#252838",
+                },
+                info_selected = {
+                    fg = "#a4f4ff",
+                    bg = "#3a3d4e",
+                    bold = true,
+                },
+                hint = {
+                    bg = "#252838",
+                },
+                hint_selected = {
+                    fg = "#8296d4",
+                    bg = "#3a3d4e",
                     bold = true,
                 },
             },
