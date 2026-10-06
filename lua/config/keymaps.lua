@@ -13,9 +13,13 @@ map("i", "jk", "<ESC>", { desc = "使用 jk 退出插入模式" })
 map("i", "kj", "<ESC>", { desc = "使用 kj 退出插入模式" })
 map("n", "H", "^", { desc = "跳到行首" })
 map("n", "L", "$", { desc = "跳到行尾" })
--- 使用 Alt + h/l 在标签页之间左右横跳（非常适合 C++ 头文件/源文件切换）
-map("n", "<A-h>", "<cmd>BufferLineCyclePrev<cr>", { desc = "上一个标签" })
-map("n", "<A-l>", "<cmd>BufferLineCycleNext<cr>", { desc = "下一个标签" })
+-- 使用 Alt + ,/. 在标签页之间左右横跳（非常适合 C++ 头文件/源文件切换）
+-- 不能用 Alt+h/l：niri 合成器的 Mod 默认就是 Alt，而 ~/.config/niri/config.kdl:257-258
+-- 把 Mod+H / Mod+L 绑成了窗口列焦点切换，于是 Alt+h/l 在合成器这一层就被截走，
+-- 根本到不了终端和 nvim —— 这就是它一直不生效的原因，与本配置文件无关。
+-- Alt+, / Alt+. 经查在 niri 与 nvim 两边都未被占用。
+map("n", "<A-,>", "<cmd>BufferLineCyclePrev<cr>", { desc = "上一个标签" })
+map("n", "<A-.>", "<cmd>BufferLineCycleNext<cr>", { desc = "下一个标签" })
 
 -- 关闭当前标签
 map("n", "<leader>bc", "<cmd>bdelete<cr>", { desc = "关闭当前 Buffer" })

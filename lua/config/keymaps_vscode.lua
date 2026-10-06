@@ -22,8 +22,10 @@ map("n", "<C-k>", function() action("workbench.action.navigateUp") end)
 map("n", "<C-j>", function() action("workbench.action.navigateDown") end)
 
 -- ===== 标签页 =====
-map("n", "<A-h>", function() action("workbench.action.previousEditorInGroup") end, { desc = "上一个标签" })
-map("n", "<A-l>", function() action("workbench.action.nextEditorInGroup") end, { desc = "下一个标签" })
+-- 同 keymaps.lua：Alt+h/l 会被 niri 的 Mod+H/Mod+L（窗口列焦点切换）在合成器层截走，
+-- 到不了 VSCode/nvim，改用 Alt+,/.
+map("n", "<A-,>", function() action("workbench.action.previousEditorInGroup") end, { desc = "上一个标签" })
+map("n", "<A-.>", function() action("workbench.action.nextEditorInGroup") end, { desc = "下一个标签" })
 map("n", "<leader>bc", function() action("workbench.action.closeActiveEditor") end, { desc = "关闭标签" })
 
 -- ===== 文件/搜索 =====
