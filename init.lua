@@ -1,3 +1,6 @@
+-- 放在最前面：必须在任何 LSP 写日志之前轮转（原因见该模块内的说明）
+require("config.lsp_log_rotate")
+
 -- 设置 Leader
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "

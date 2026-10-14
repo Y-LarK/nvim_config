@@ -72,7 +72,13 @@ return {
                             c = { "socat", "-", "TCP:localhost:" .. port }
                         else
                             c = {
-                                "clangd",
+                                -- 写绝对路径：mason 把 ~/.local/share/nvim/mason/bin 插在
+                                -- 会话 PATH 最前面，只写 "clangd" 会命中 mason 的包。
+                                -- 用系统的 clangd 是因为 mason 那个 22.1.0 在增量重解析
+                                -- QObject::connect 的成员指针参数时会 segfault
+                                -- (MemberPointerType::isSugared ← TryReferenceInitialization)，
+                                -- 系统版 22.1.8 未复现。
+                                "/usr/bin/clangd",
                                 "--background-index",
                                 "--clang-tidy",
                                 "--header-insertion=iwyu",
