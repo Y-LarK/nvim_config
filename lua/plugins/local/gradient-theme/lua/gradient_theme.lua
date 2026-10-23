@@ -104,14 +104,10 @@ function M.setup()
             [[@\%(param\|tparam\|return\|returns\|brief\|details\|note\|warning\|see\|ref\|throws\|exception\|author\|date\|version\|since\|deprecated\|todo\|test\|code\|endcode\|class\|struct\|enum\|fn\|var\|def\|file\|namespace\|ingroup\)\>]]
             vim.fn.matchadd("DoxygenTag", tags, 10, -1)
             vim.fn.matchadd("DoxygenBrief", [[@brief\s\+\zs.*$]], 9, -1)
-            -- TODO / FIXME / HACK / NOTE 注释高亮
-            vim.fn.matchadd("TodoComment", [[//\s*\zs\%(TODO\|FIXME\|HACK\|NOTE\|XXX\|OPTIM\)\>]], 8, -1)
-            vim.fn.matchadd("TodoComment", [[/\*\s*\zs\%(TODO\|FIXME\|HACK\|NOTE\|XXX\|OPTIM\)\>]], 8, -1)
         end,
     })
     hl("DoxygenTag", { fg = c.cyan, bold = true })
     hl("DoxygenBrief", { fg = c.fg_dim, italic = true })
-    hl("TodoComment", { fg = c.orange, bold = true })
 
     hl("DiagnosticSignError", { fg = c.red, bg = transparent })
     hl("DiagnosticSignWarn", { fg = c.orange, bg = transparent })
