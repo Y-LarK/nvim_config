@@ -71,6 +71,35 @@ return {
                 end,
             })
 
+            -- <Tab> 进入/离开 LSP hover 属性浮窗（配合上面的 K）：
+            -- 1) 原 buffer 上有打开的 hover 浮窗（open_floating_preview 在原 buffer 上
+            --    设 lsp_floating_preview = 浮窗 winid）→ 进入浮窗
+            -- 2) 已在浮窗内（浮窗窗口上有 lsp_floating_bufnr = 原 buffer id）→ 切回原窗口
+            -- 3) 都不是 → 回退原生 <Tab> 行为（跳转列表前进，与 <C-i> 等价；
+            --    feedkeys 用 noremap 模式，不会递归触发本映射）
+            -- 不冲突：ufo 折叠预览开着时其 buffer-local <Tab>（switch）优先级更高；
+            -- aerial/nvim-tree/telescope 的 buffer-local <Tab> 同理。
+            -- 已实测 0.12：切进浮窗不会触发 BufLeave 自动关闭（豁免名单含浮窗自身）。
+            vim.keymap.set("n", "<Tab>", function()
+                if vim.w.lsp_floating_bufnr then
+                    -- 当前就在 hover 浮窗里：切回显示原 buffer 的普通窗口
+                    for _, w in ipairs(vim.fn.win_findbuf(vim.w.lsp_floating_bufnr)) do
+                        if vim.api.nvim_win_get_config(w).relative == "" then
+                            vim.api.nvim_set_current_win(w)
+                            return
+                        end
+                    end
+                    return
+                end
+                local floatWin = vim.b.lsp_floating_preview
+                if floatWin and vim.api.nvim_win_is_valid(floatWin) then
+                    vim.api.nvim_set_current_win(floatWin)
+                    return
+                end
+                vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-i>", true, false, true), "n", false)
+            end, { desc = "进入/离开 LSP hover 浮窗，或跳转列表前进" })
+
+
             ufo.setup({
                 provider_selector = function(_, _, buftype)
                     -- 特殊 buftype（nofile/terminal/preview 等）不折叠；
