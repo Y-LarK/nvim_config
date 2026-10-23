@@ -55,7 +55,7 @@ return {
                 -- 代价：打完 '->' 不再立刻弹成员菜单，但继续输入一个字母即以 Invoked 重新请求
                 -- clangd，成员候选照常返回，功能上无实质损失。
                 trigger = {
-                    show_on_blocked_trigger_characters = { " ", "\n", "\t", "<", ">" },
+                    show_on_blocked_trigger_characters = { " ", "\n", "\t", "<", ">", "/", "*" },
                 },
                 documentation = { auto_show = true, auto_show_delay_ms = 200 },
                 ghost_text = { enabled = true },
