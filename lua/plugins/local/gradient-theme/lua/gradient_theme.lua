@@ -43,6 +43,13 @@ function M.setup()
     hl("SignColumn", { bg = transparent })
     hl("Folded", { fg = c.comment, bg = transparent })
     hl("FoldColumn", { fg = c.comment, bg = transparent })
+    -- nvim-ufo：折叠摘要行与预览浮窗（UfoCursorFoldedLine 默认链接 CursorLine，无需另设）
+    hl("UfoFoldedFg", { fg = c.comment, bg = transparent })       -- 折叠行摘要文字（"…N 行…"）
+    hl("UfoFoldedBg", { bg = "#252838" })                         -- 摘要行/预览标题栏底色，同 CursorLine 色系
+    hl("UfoFoldedEllipsis", { fg = c.comment, bg = transparent }) -- 摘要超宽被截断时的省略号
+    hl("UfoPreviewWinBar", { fg = c.comment, bg = "#252838" })    -- 预览浮窗顶部标题栏
+    hl("UfoPreviewSbar", { fg = c.selection, bg = transparent })  -- 预览浮窗滚动条槽
+    hl("UfoPreviewThumb", { fg = c.comment, bg = transparent })   -- 预览浮窗滚动条滑块
     hl("EndOfBuffer", { fg = c.selection, bg = transparent })
     hl("NavicText", { fg = c.fg_dim, bg = transparent })
     hl("NavicIcons", { fg = c.cyan, bg = transparent })

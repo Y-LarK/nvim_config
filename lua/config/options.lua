@@ -9,7 +9,7 @@ opt.clipboard      = "unnamedplus"
 -- 行号
 opt.number         = true
 opt.relativenumber = true
-opt.fillchars      = { eob = " " } -- 隐藏缓冲区末尾的 ~ 占位符
+opt.fillchars      = { eob = " ", foldopen = "▼", foldclose = "▶", foldsep = "│" } -- 隐藏缓冲区末尾的 ~ 占位符；foldopen/close/sep 为折叠列符号（配合 nvim-ufo）
 
 -- 缩进
 opt.tabstop        = 4
