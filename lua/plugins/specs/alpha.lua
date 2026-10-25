@@ -92,8 +92,13 @@ return {
                     dashboard.section.footer.val = footer()
                     pcall(vim.cmd, "AlphaRedraw")
                 else
-                    timer:stop()
-                    timer:close()
+                    -- 回调经 schedule_wrap 延迟执行，事件循环停顿（如按 ENTER 消息页）期间
+                    -- 会排入多个回调；第一个已 stop+close 后，余下的再 close 同一 handle
+                    -- 会报 "handle is already closing"，故先查 is_closing
+                    if not timer:is_closing() then
+                        timer:stop()
+                        timer:close()
+                    end
                 end
             end)
         )
