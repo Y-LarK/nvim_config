@@ -1,4 +1,4 @@
--- gradient-theme —— 跟随 dms 深浅模式的双色板主题
+-- gradient-theme —— 跟随 dms 深浅模式的双轨主题
 --
 -- 模式信号：DMS 切深浅时会以对应 --mode 重跑 matugen，后者重写
 --   ~/.cache/niri-quickshell/colors.json
@@ -8,10 +8,16 @@
 -- rename 替换时失效），防抖后重判，模式变化才重新应用 —— 换壁纸不切
 -- 模式时幂等跳过。
 --
--- 背景全部 transparent，跟随终端：深色下是 Nord 深底，浅色下是
+-- 双轨（2026-10-25 起）：
+--   dark  —— 自绘德古拉系色板，apply("dark") 手写全部高亮组，逐值不变。
+--   light —— colorscheme gruvbox（morhetz/gruvbox）接管标准组与语法高亮
+--            （其文件开头 hi clear + syntax reset，深色残留被清干净），
+--            之后再补「钉子组」：gruvbox 没有的插件组 + 透明组。钉子值
+--            全部取自 gruvbox.vim 浅色相对色（faded 语法色 + bg0-4）。
+-- 背景两种模式都 transparent 跟随终端：深色下是 Nord 深底，浅色下是
 -- Material You surface（kitty 的 matugen-background.conf 提供浅底）。
--- 浅色彩色为高饱和变体（色相对齐深色，对浅底对比度 ≥4.5）；kitty 侧
--- ANSI 仍是 Nord 加深版，终端内外彩色不再逐值一致，仅背景与中性色统一。
+-- 注意 morhetz/gruvbox 没有 g:gruvbox_transparent_bg —— 那是社区 fork
+-- 的选项（wiki 过时），透明必须由 apply_light 手动补。
 
 local M = {}
 
@@ -67,47 +73,46 @@ local palettes = {
         pmenu_sel_fg = "#1e2030",
         ufo_bg = "#252838",
     },
+    -- 浅色不再是完整自绘板：apply("light") 先 colorscheme gruvbox 接管
+    -- 标准组/语法高亮，这里只喂 apply_light 的「钉子组」（gruvbox 没有
+    -- 的插件组 + 需要透明的组）。全部取自 gruvbox.vim 浅色相对色：
+    --   bg0 #fbf1c7  bg1 #ebdbb2  bg2 #d5c4a1  bg3 #bdae93  bg4 #a89984
+    --   fg1 #3c3836  fg2 #504945  fg3 #665c54  fg4 #7c6f64  gray #928374
+    --   faded: red #9d0006  orange #af3a03  yellow #b57614
+    --          green #79740e  aqua #427b58  blue #076678  purple #8f3f71
     light = {
-        bg = "#fbf9fb",          -- Material You surface（仅作反色前景用，背景保持 transparent）
-        fg = "#2e3440",          -- Nord0，同 kitty 浅色前景
-        fg_dim = "#3b4252",
-        comment = "#5d6b85",
-        selection = "#d8dee9",
-        cursorline = "#e7ecf3",
-        match = "#bccfeb",
-        visual = "#9fbede",      -- 同 kitty selection_background
-        red = "#e02424",
-        orange = "#a6640d",
-        yellow = "#6e7a03",
-        green = "#0f852d",
-        cyan = "#047f91",
-        blue = "#466bde",
-        purple = "#904deb",
-        pink = "#d51e90",
-        line_nr = "#8792a8",
-        search_fg = "#2e3440",
-        search_bg = "#f0e3a2",
-        incsearch_bg = "#f5c98a",
-        end_of_buffer = "#d8dee9",
-        ibl_indent = "#c3cbdc",
-        ibl_scope = "#9aa6bd",
-        ghost = "#9aa6bd",
-        inlay = "#8593ad",
-        code_bg = "#eceff4",
-        inline_hl_bg = "#e3e9f2",
-        strong = "#1a2332",
-        strong_italic = "#10151d",
-        heading1 = "#e02424",
-        heading2 = "#466bde",
-        heading3 = "#0f852d",
-        heading4 = "#6e7a03",
-        heading5 = "#904deb",
-        heading6 = "#047f91",
-        statusline_bg = "#dde3ee",
-        statusline_nc_bg = "#eceff4",
-        sep = "#c9d2e0",
-        pmenu_sel_fg = "#fbf9fb",
-        ufo_bg = "#e7ecf3",
+        bg = "#fbf1c7",          -- light0（仅作锚点注释，Normal 背景实际透明）
+        fg = "#3c3836",          -- fg1
+        fg_dim = "#504945",      -- fg2
+        comment = "#928374",     -- gray
+        match = "#d5c4a1",       -- bg2，LspReference/Illuminated 底
+        cursorline = "#ebdbb2",  -- bg1，同 gruvbox 自绘 CursorLine 色系
+        red = "#9d0006",
+        orange = "#af3a03",
+        yellow = "#b57614",
+        green = "#79740e",
+        cyan = "#427b58",        -- aqua
+        blue = "#076678",
+        purple = "#8f3f71",
+        pink = "#8f3f71",        -- gruvbox 无 pink，Keyword 系并入 purple
+        line_nr = "#7c6f64",     -- fg4
+        end_of_buffer = "#d5c4a1",
+        ibl_indent = "#d5c4a1",  -- bg2
+        ibl_scope = "#a89984",   -- bg4
+        ghost = "#a89984",       -- bg4
+        inlay = "#7c6f64",       -- fg4
+        code_bg = "#ebdbb2",     -- bg1
+        inline_hl_bg = "#ebdbb2",
+        strong = "#282828",      -- fg0（dark0）
+        strong_italic = "#1d2021", -- dark0_hard，粗斜体再压一档
+        heading1 = "#9d0006",
+        heading2 = "#076678",
+        heading3 = "#79740e",
+        heading4 = "#b57614",
+        heading5 = "#8f3f71",
+        heading6 = "#427b58",
+        sep = "#d5c4a1",         -- bg2
+        ufo_bg = "#ebdbb2",      -- bg1，同 CursorLine 色系
     },
 }
 
@@ -139,10 +144,206 @@ function M.detect()
     return lum > 0.5 and "light" or "dark"
 end
 
+-- smear-cursor 拖影色随模式（启动期由 cursor.lua 的 opts 惰性函数按模式
+-- 取值；这里管运行时切换）。元表把 cursor_color 转发给 color 模块，
+-- 改完必须 clear_cache()，否则已缓存的高亮组名不会重算颜色。
+local function apply_cursor_color(mode)
+    local ok, smear = pcall(require, "smear_cursor")
+    if not ok then
+        return
+    end
+    smear.cursor_color = mode == "light" and "#8f3f71" or "#bd93f9"
+    local ok_color, color_mod = pcall(require, "smear_cursor.color")
+    if ok_color and color_mod.clear_cache then
+        color_mod.clear_cache()
+    end
+end
+
+-- 浅色轨：gruvbox 接管标准组/语法高亮，再补钉子组。
+-- gruvbox 开头 hi clear + syntax reset，深色轨的手写组被清干净；
+-- 所以本函数必须在 colorscheme 之后逐组设置，顺序不能反。
+-- 可重复调用（幂等，重跑 colorscheme + 重设钉子组）。
+local function apply_light()
+    -- 终端里 nvim 同样能渲染斜体，gruvbox 默认终端关斜体，打开以对齐深色观感
+    vim.g.gruvbox_italic = 1
+    -- gruvbox 按 &background 选浅色板（源码 s:is_dark），必须在 colorscheme 前
+    vim.o.background = "light"
+    vim.cmd("colorscheme gruvbox")
+
+    local c = palettes.light
+
+    local function hl(group, opts)
+        vim.api.nvim_set_hl(0, group, opts)
+    end
+
+    local transparent = "NONE"
+
+    -- 透明组：gruvbox 会把 Normal 等刷成米色实底，本机浅色走终端 matugen 白底
+    hl("Normal", { fg = c.fg, bg = transparent })
+    hl("NormalNC", { fg = c.fg, bg = transparent })
+    hl("NormalFloat", { fg = c.fg, bg = transparent })
+    hl("NormalSB", { fg = c.fg, bg = transparent }) -- 某些侧边栏组件的背景
+    hl("MsgArea", { fg = c.fg, bg = transparent })
+    hl("SignColumn", { bg = transparent })
+    hl("EndOfBuffer", { fg = c.end_of_buffer, bg = transparent })
+    hl("Folded", { fg = c.comment, bg = transparent })
+    hl("FoldColumn", { fg = c.comment, bg = transparent })
+    hl("TabLineFill", { bg = transparent }) -- bufferline 透明标签栏的兜底层
+    hl("WinBar", { fg = c.fg, bg = transparent })
+    hl("WinBarNC", { fg = c.fg_dim, bg = transparent, italic = true })
+    hl("VertSplit", { fg = c.sep, bg = transparent })
+    hl("WinSeparator", { fg = c.sep, bg = transparent })
+    hl("Pmenu", { fg = c.fg, bg = transparent }) -- PmenuSel/Sbar/Thumb 留给 gruvbox
+    hl("FloatBorder", { fg = c.purple, bg = transparent })
+
+    -- LSP/插件组（gruvbox 未定义）
+    hl("LspReferenceText", { bg = c.match, underline = true })
+    hl("LspReferenceRead", { bg = c.match, underline = true })
+    hl("LspReferenceWrite", { bg = c.match, underline = true })
+    hl("IlluminatedWordText", { bg = c.match, underline = true })
+    hl("IlluminatedWordRead", { bg = c.match, underline = true })
+    hl("IlluminatedWordWrite", { bg = c.match, underline = true })
+    hl("NavicText", { fg = c.fg_dim, bg = transparent })
+    hl("NavicIcons", { fg = c.cyan, bg = transparent })
+    hl("NavicSeparator", { fg = c.comment, bg = transparent })
+    hl("IblIndent", { fg = c.ibl_indent })
+    hl("IblScope", { fg = c.ibl_scope })
+    hl("CmpGhostText", { fg = c.ghost, italic = true })
+    hl("BlinkCmpGhostText", { fg = c.ghost, italic = true })
+    hl("LspInlayHint", { fg = c.inlay, italic = true })
+    -- snippet 占位符底色与 CursorLine 同色系，不设 bold（理由见深色轨同名注释）
+    hl("SnippetTabstop", { bg = c.cursorline })
+    hl("DoxygenTag", { fg = c.cyan, bold = true })
+    hl("DoxygenBrief", { fg = c.fg_dim, italic = true })
+
+    -- nvim-ufo
+    hl("UfoFoldedFg", { fg = c.comment, bg = transparent })
+    hl("UfoFoldedBg", { bg = c.ufo_bg })
+    hl("UfoFoldedEllipsis", { fg = c.comment, bg = transparent })
+    hl("UfoPreviewWinBar", { fg = c.comment, bg = c.ufo_bg })
+    hl("UfoPreviewSbar", { fg = c.cursorline, bg = transparent })
+    hl("UfoPreviewThumb", { fg = c.comment, bg = transparent })
+
+    -- 诊断：undercurl + 透明标号列/虚拟文本（gruvbox 未定义 Diagnostic*）
+    hl("DiagnosticError", { fg = c.red, undercurl = true, sp = c.red })
+    hl("DiagnosticWarn", { fg = c.orange, undercurl = true, sp = c.orange })
+    hl("DiagnosticInfo", { fg = c.cyan, undercurl = true, sp = c.cyan })
+    hl("DiagnosticHint", { fg = c.blue, undercurl = true, sp = c.blue })
+    hl("DiagnosticSignError", { fg = c.red, bg = transparent })
+    hl("DiagnosticSignWarn", { fg = c.orange, bg = transparent })
+    hl("DiagnosticSignInfo", { fg = c.cyan, bg = transparent })
+    hl("DiagnosticSignHint", { fg = c.blue, bg = transparent })
+    hl("DiagnosticUnnecessary", { fg = c.comment, italic = true, undercurl = true, sp = c.purple })
+    hl("DiagnosticVirtualTextError", { fg = c.red, bg = "NONE" })
+    hl("DiagnosticVirtualTextWarn", { fg = c.orange, bg = "NONE" })
+    hl("DiagnosticVirtualTextInfo", { fg = c.cyan, bg = "NONE" })
+    hl("DiagnosticVirtualTextHint", { fg = c.blue, bg = "NONE" })
+    hl("DiagnosticUnderlineError", { undercurl = true, sp = c.red })
+    hl("DiagnosticUnderlineWarn", { undercurl = true, sp = c.orange })
+    hl("DiagnosticUnderlineInfo", { undercurl = true, sp = c.cyan })
+    hl("DiagnosticUnderlineHint", { undercurl = true, sp = c.blue })
+
+    -- LSP 语义标记兜底（gruvbox 无语义标记支持）
+    hl("@lsp.type.comment", { link = "Comment" })
+    hl("@lsp.mod.deprecated", { italic = true, strikethrough = true })
+
+    -- Markdown：标题色相映射与深色轨一致，值用 gruvbox faded
+    hl("RenderMarkdownH1Bg", { bg = "NONE" })
+    hl("RenderMarkdownH2Bg", { bg = "NONE" })
+    hl("RenderMarkdownH3Bg", { bg = "NONE" })
+    hl("RenderMarkdownH4Bg", { bg = "NONE" })
+    hl("RenderMarkdownH5Bg", { bg = "NONE" })
+    hl("RenderMarkdownH6Bg", { bg = "NONE" })
+    hl("RenderMarkdownH1", { fg = c.heading1, bold = true })
+    hl("RenderMarkdownH2", { fg = c.heading2, bold = true })
+    hl("RenderMarkdownH3", { fg = c.heading3, bold = true })
+    hl("RenderMarkdownH4", { fg = c.heading4, bold = true })
+    hl("RenderMarkdownH5", { fg = c.heading5, bold = true })
+    hl("RenderMarkdownH6", { fg = c.heading6, bold = true })
+    hl("@markup.heading.1.markdown", { fg = c.heading1, bold = true })
+    hl("@markup.heading.2.markdown", { fg = c.heading2, bold = true })
+    hl("@markup.heading.3.markdown", { fg = c.heading3, bold = true })
+    hl("@markup.heading.4.markdown", { fg = c.heading4, bold = true })
+    hl("@markup.heading.5.markdown", { fg = c.heading5, bold = true })
+    hl("@markup.heading.6.markdown", { fg = c.heading6, bold = true })
+    hl("@markup.strong", { fg = c.strong, bold = true })
+    hl("@markup.italic", { fg = c.fg_dim, italic = true })
+    hl("@markup.strong.italic", { fg = c.strong_italic, bold = true, italic = true })
+    hl("@markup.link.label.markdown_inline", { fg = c.cyan, underline = true })
+    hl("@markup.link.url.markdown_inline", { fg = c.comment, underline = true })
+    hl("@markup.list.unchecked", { fg = c.orange })
+    hl("@markup.list.checked", { fg = c.green })
+    hl("@markup.quote", { fg = c.comment, italic = true })
+    hl("@markup.raw", { fg = c.orange, italic = true })
+
+    hl("RenderMarkdownCode", { bg = c.code_bg })
+    hl("RenderMarkdownCodeBorder", { fg = c.purple })
+    hl("RenderMarkdownCodeInline", { fg = c.yellow, bg = "NONE", bold = true })
+    hl("RenderMarkdownCodeInfo", { fg = c.cyan })
+    hl("RenderMarkdownCodeFallback", { fg = c.cyan, italic = true })
+    hl("RenderMarkdownQuote", { fg = c.blue, italic = true })
+    hl("RenderMarkdownQuote1", { fg = c.red, italic = true })
+    hl("RenderMarkdownQuote2", { fg = c.orange, italic = true })
+    hl("RenderMarkdownQuote3", { fg = c.yellow, italic = true })
+    hl("RenderMarkdownQuote4", { fg = c.green, italic = true })
+    hl("RenderMarkdownQuote5", { fg = c.cyan, italic = true })
+    hl("RenderMarkdownQuote6", { fg = c.purple, italic = true })
+    hl("RenderMarkdownBullet", { fg = c.pink, bold = true })
+    hl("RenderMarkdownChecked", { fg = c.green, bold = true })
+    hl("RenderMarkdownUnchecked", { fg = c.orange })
+    hl("RenderMarkdownLink", { fg = c.cyan, underline = true, bold = true })
+    hl("RenderMarkdownLinkTitle", { fg = c.purple, italic = true })
+    hl("RenderMarkdownTableHead", { fg = c.cyan, bold = true })
+    hl("RenderMarkdownTableRow", { fg = c.fg })
+    hl("RenderMarkdownMath", { fg = c.pink, bold = true })
+    hl("RenderMarkdownDash", { fg = c.purple, bold = true })
+    hl("RenderMarkdownSign", { fg = c.purple, bold = true })
+    hl("RenderMarkdownTodo", { fg = c.red, bold = true })
+    hl("RenderMarkdownHtmlComment", { fg = c.comment, italic = true })
+    hl("RenderMarkdownInlineHighlight", { fg = c.yellow, bg = c.inline_hl_bg })
+    hl("RenderMarkdownIndent", { fg = c.line_nr })
+    hl("RenderMarkdownWikiLink", { fg = c.cyan, underline = true })
+    hl("RenderMarkdownError", { fg = c.red, bold = true })
+    hl("RenderMarkdownWarn", { fg = c.orange, bold = true })
+    hl("RenderMarkdownInfo", { fg = c.cyan, bold = true })
+    hl("RenderMarkdownHint", { fg = c.blue, bold = true })
+    hl("RenderMarkdownSuccess", { fg = c.green, bold = true })
+    hl("RenderMarkdownColors", { fg = c.fg })
+    hl("RenderMarkdownPreview", { link = "Normal" })
+
+    -- 彩虹括号：7 槽对应深色轨，值用 gruvbox faded + aqua
+    hl("RainbowDelimiterRed", { fg = c.red })
+    hl("RainbowDelimiterOrange", { fg = c.orange })
+    hl("RainbowDelimiterYellow", { fg = c.yellow })
+    hl("RainbowDelimiterGreen", { fg = c.green })
+    hl("RainbowDelimiterCyan", { fg = c.cyan })
+    hl("RainbowDelimiterBlue", { fg = c.blue })
+    hl("RainbowDelimiterViolet", { fg = c.purple })
+
+    apply_cursor_color("light")
+    -- 外围组件（bufferline 标签栏等）的随模式自绘高亮靠这个事件重挂
+    vim.api.nvim_exec_autocmds("User", { pattern = "GradientThemeApplied" })
+end
+
 -- 应用指定模式的全部高亮；可重复调用（幂等，仅重设高亮组）
 function M.apply(mode)
-    local c = palettes[mode] or palettes.dark
+    -- 模式状态统一在入口写入：lualine / alpha / cursor / bufferline 的回调
+    -- 都读 vim.g.gradient_theme_mode，不能依赖调用方先写
+    vim.g.gradient_theme_mode = mode
+    if mode == "light" then
+        apply_light()
+        return
+    end
+    local c = palettes.dark
     vim.o.background = mode
+    -- 浅色轨的 gruvbox 会写 g:terminal_color_0..15；回深色时清掉，
+    -- 让 :terminal 回落到 kitty 传入的 ANSI（本机终端色始终由 kitty 管）
+    for i = 0, 15 do
+        vim.g["terminal_color_" .. i] = nil
+    end
+    -- colorscheme gruvbox 留下的 g:colors_name 同理清掉，避免按
+    -- colorscheme 取色的插件误判（本配置深色轨不是任何 colorscheme）
+    vim.g.colors_name = nil
 
     local function hl(group, opts)
         vim.api.nvim_set_hl(0, group, opts)
@@ -377,6 +578,9 @@ function M.apply(mode)
     hl("RainbowDelimiterCyan", { fg = c.cyan })
     hl("RainbowDelimiterBlue", { fg = c.purple })
     hl("RainbowDelimiterViolet", { fg = c.pink })
+
+    apply_cursor_color("dark")
+    vim.api.nvim_exec_autocmds("User", { pattern = "GradientThemeApplied" })
 end
 
 -- Doxygen 标签高亮：matchadd 引用的是高亮组名，组色随模式重定义自动生效，
