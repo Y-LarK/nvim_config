@@ -10,8 +10,8 @@
 --
 -- 背景全部 transparent，跟随终端：深色下是 Nord 深底，浅色下是
 -- Material You surface（kitty 的 matugen-background.conf 提供浅底）。
--- 浅色色板与 kitty 浅色 ANSI 同源（Nord 加深版，对白底对比度 ≥4.5），
--- 保证终端内 nvim 与周边（tmux/btop 等）观感统一。
+-- 浅色彩色为高饱和变体（色相对齐深色，对浅底对比度 ≥4.5）；kitty 侧
+-- ANSI 仍是 Nord 加深版，终端内外彩色不再逐值一致，仅背景与中性色统一。
 
 local M = {}
 
@@ -19,9 +19,11 @@ local COLORS_DIR = vim.fs.normalize("~/.cache/niri-quickshell")
 local COLORS_FILE = COLORS_DIR .. "/colors.json"
 
 -- 两套色板。dark 与旧版逐值一致（深色模式零变化）；
--- light 彩色语义按 kitty 浅色 ANSI（Nord 加深版）映射：
---   red→color1  orange→color16  yellow→color3  green→color2
---   cyan→color6 blue→color4    purple→color5  pink→color13
+-- light 彩色不再沿用 kitty 浅色 ANSI（Nord 加深版，低饱和），改为
+-- 色相对齐 dark 色板 + 高饱和（70~95%），并保证对浅底对比度 ≥4.5，
+-- 两个模式的彩色观感一致：
+--   red→0°  orange→34°  yellow→66°  green→135°
+--   cyan→187° blue→225° purple→265° pink→323°
 local palettes = {
     dark = {
         bg = "#1e2030",
@@ -74,14 +76,14 @@ local palettes = {
         cursorline = "#e7ecf3",
         match = "#bccfeb",
         visual = "#9fbede",      -- 同 kitty selection_background
-        red = "#a63a46",
-        orange = "#b25737",
-        yellow = "#7f640c",
-        green = "#3f7e2c",
-        cyan = "#0f7a89",
-        blue = "#3d6e99",
-        purple = "#7d4a76",
-        pink = "#965d8d",
+        red = "#e02424",
+        orange = "#a6640d",
+        yellow = "#6e7a03",
+        green = "#0f852d",
+        cyan = "#047f91",
+        blue = "#466bde",
+        purple = "#904deb",
+        pink = "#d51e90",
         line_nr = "#8792a8",
         search_fg = "#2e3440",
         search_bg = "#f0e3a2",
@@ -95,12 +97,12 @@ local palettes = {
         inline_hl_bg = "#e3e9f2",
         strong = "#1a2332",
         strong_italic = "#10151d",
-        heading1 = "#c04b56",
-        heading2 = "#3d6fa8",
-        heading3 = "#3f7e2c",
-        heading4 = "#7f640c",
-        heading5 = "#7d4a76",
-        heading6 = "#0f7a89",
+        heading1 = "#e02424",
+        heading2 = "#466bde",
+        heading3 = "#0f852d",
+        heading4 = "#6e7a03",
+        heading5 = "#904deb",
+        heading6 = "#047f91",
         statusline_bg = "#dde3ee",
         statusline_nc_bg = "#eceff4",
         sep = "#c9d2e0",
