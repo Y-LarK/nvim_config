@@ -19,11 +19,12 @@ return {
         -- 时会重新 setup 并重新调用 options.theme 函数，而
         -- gradient-theme.apply() 每次都重设 background，故模式切换后
         -- 这里取到的就是新模式的表，无需本插件再监听任何事件。
-        -- dark 与旧版固定主题逐值一致；light 取自 gradient-theme 浅色板：
-        --   - 芯片(a/z)字用白色；command 芯片反转为深底浅字（浅色下白底白字不可见）
-        --   - b/y 背景 #c9d2e0 比 c/x 正文 #dde3ee 略深，对应深色版
-        --     gray_bg(#3a3d4e) 比 dim_bg(#252838) 略亮的层次关系
-        --   - inactive 背景 #eceff4 对应深色版 #1e2030（statusline_nc_bg 语义）
+        -- dark 与旧版固定主题逐值一致；light 取自 gruvbox 浅色板
+        -- （gradient-theme 浅色轨已切 gruvbox，faded 语法色 + bg0-4 中性色）：
+        --   - 芯片(a/z)字用 light0 #fbf1c7；command 芯片反转为 fg1 深底
+        --   - b/y 背景 bg2 #d5c4a1 比 c/x 正文 bg1 #ebdbb2 略深，对应
+        --     深色版 gray_bg 比 dim_bg 略亮的层次关系
+        --   - inactive 背景 light0_soft #f2e5bc（最不显眼的浅底）
         local themes = {
             dark = {
                 normal   = { a = { fg = "#1e2030", bg = "#cfacff" }, b = { fg = "#cfacff", bg = "#3a3d4e" }, c = { fg = "#b8c0d8", bg = "#252838" }, x = { fg = "#b8c0d8", bg = "#252838" }, y = { fg = "#cfacff", bg = "#3a3d4e" }, z = { fg = "#1e2030", bg = "#cfacff" } },
@@ -34,12 +35,12 @@ return {
                 inactive = { a = { fg = "#b8c0d8", bg = "#1e2030" }, b = { fg = "#b8c0d8", bg = "#1e2030" }, c = { fg = "#b8c0d8", bg = "#1e2030" }, x = { fg = "#b8c0d8", bg = "#1e2030" }, y = { fg = "#b8c0d8", bg = "#1e2030" }, z = { fg = "#b8c0d8", bg = "#1e2030" } },
             },
             light = {
-                normal   = { a = { fg = "#ffffff", bg = "#904deb" }, b = { fg = "#904deb", bg = "#c9d2e0" }, c = { fg = "#5d6b85", bg = "#dde3ee" }, x = { fg = "#5d6b85", bg = "#dde3ee" }, y = { fg = "#904deb", bg = "#c9d2e0" }, z = { fg = "#ffffff", bg = "#904deb" } },
-                insert   = { a = { fg = "#ffffff", bg = "#466bde" }, b = { fg = "#466bde", bg = "#c9d2e0" }, c = { fg = "#5d6b85", bg = "#dde3ee" }, x = { fg = "#5d6b85", bg = "#dde3ee" }, y = { fg = "#466bde", bg = "#c9d2e0" }, z = { fg = "#ffffff", bg = "#466bde" } },
-                visual   = { a = { fg = "#ffffff", bg = "#a6640d" }, b = { fg = "#a6640d", bg = "#c9d2e0" }, c = { fg = "#5d6b85", bg = "#dde3ee" }, x = { fg = "#5d6b85", bg = "#dde3ee" }, y = { fg = "#a6640d", bg = "#c9d2e0" }, z = { fg = "#ffffff", bg = "#a6640d" } },
-                replace  = { a = { fg = "#ffffff", bg = "#e02424" }, b = { fg = "#e02424", bg = "#c9d2e0" }, c = { fg = "#5d6b85", bg = "#dde3ee" }, x = { fg = "#5d6b85", bg = "#dde3ee" }, y = { fg = "#e02424", bg = "#c9d2e0" }, z = { fg = "#ffffff", bg = "#e02424" } },
-                command  = { a = { fg = "#fbf9fb", bg = "#2e3440" }, b = { fg = "#2e3440", bg = "#c9d2e0" }, c = { fg = "#5d6b85", bg = "#dde3ee" }, x = { fg = "#5d6b85", bg = "#dde3ee" }, y = { fg = "#2e3440", bg = "#c9d2e0" }, z = { fg = "#fbf9fb", bg = "#2e3440" } },
-                inactive = { a = { fg = "#5d6b85", bg = "#eceff4" }, b = { fg = "#5d6b85", bg = "#eceff4" }, c = { fg = "#5d6b85", bg = "#eceff4" }, x = { fg = "#5d6b85", bg = "#eceff4" }, y = { fg = "#5d6b85", bg = "#eceff4" }, z = { fg = "#5d6b85", bg = "#eceff4" } },
+                normal   = { a = { fg = "#fbf1c7", bg = "#8f3f71" }, b = { fg = "#8f3f71", bg = "#d5c4a1" }, c = { fg = "#665c54", bg = "#ebdbb2" }, x = { fg = "#665c54", bg = "#ebdbb2" }, y = { fg = "#8f3f71", bg = "#d5c4a1" }, z = { fg = "#fbf1c7", bg = "#8f3f71" } },
+                insert   = { a = { fg = "#fbf1c7", bg = "#076678" }, b = { fg = "#076678", bg = "#d5c4a1" }, c = { fg = "#665c54", bg = "#ebdbb2" }, x = { fg = "#665c54", bg = "#ebdbb2" }, y = { fg = "#076678", bg = "#d5c4a1" }, z = { fg = "#fbf1c7", bg = "#076678" } },
+                visual   = { a = { fg = "#fbf1c7", bg = "#b57614" }, b = { fg = "#b57614", bg = "#d5c4a1" }, c = { fg = "#665c54", bg = "#ebdbb2" }, x = { fg = "#665c54", bg = "#ebdbb2" }, y = { fg = "#b57614", bg = "#d5c4a1" }, z = { fg = "#fbf1c7", bg = "#b57614" } },
+                replace  = { a = { fg = "#fbf1c7", bg = "#9d0006" }, b = { fg = "#9d0006", bg = "#d5c4a1" }, c = { fg = "#665c54", bg = "#ebdbb2" }, x = { fg = "#665c54", bg = "#ebdbb2" }, y = { fg = "#9d0006", bg = "#d5c4a1" }, z = { fg = "#fbf1c7", bg = "#9d0006" } },
+                command  = { a = { fg = "#f9f5d7", bg = "#3c3836" }, b = { fg = "#3c3836", bg = "#d5c4a1" }, c = { fg = "#665c54", bg = "#ebdbb2" }, x = { fg = "#665c54", bg = "#ebdbb2" }, y = { fg = "#3c3836", bg = "#d5c4a1" }, z = { fg = "#f9f5d7", bg = "#3c3836" } },
+                inactive = { a = { fg = "#a89984", bg = "#f2e5bc" }, b = { fg = "#a89984", bg = "#f2e5bc" }, c = { fg = "#a89984", bg = "#f2e5bc" }, x = { fg = "#a89984", bg = "#f2e5bc" }, y = { fg = "#a89984", bg = "#f2e5bc" }, z = { fg = "#a89984", bg = "#f2e5bc" } },
             },
         }
 
@@ -86,11 +87,12 @@ return {
                             return " " .. bt .. " 󰄛 " .. lt
                         end,
                         cond = function() return ok_cmake and cmake.is_cmake_project() end,
-                        -- color 用函数：lualine 每次绘制时求值，深浅切换后无需重建组件
+                        -- color 用函数：lualine 每次绘制时求值，深浅切换后无需重建组件。
+                        -- themes 表不能塞 mode 之外的多余键（lualine 会把它当模式遍历），
+                        -- 绿色单独放一张小映射
                         color = function()
-                            local t = vim.g.gradient_theme_mode == "light" and themes.light or themes.dark
-                            -- 两套色板里绿色都等于 insert 芯片的底色，直接取同一来源
-                            return { fg = t.insert.a.bg }
+                            local green = { dark = "#66ff8d", light = "#79740e" }
+                            return { fg = vim.g.gradient_theme_mode == "light" and green.light or green.dark }
                         end,
                     },
                     { "diagnostics", sources = { "nvim_diagnostic" }, symbols = { error = " ", warn = " ", info = " ", hint = "󰛩 " } },

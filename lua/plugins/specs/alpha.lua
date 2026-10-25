@@ -9,23 +9,39 @@ return {
         local dashboard = require("alpha.themes.dashboard")
 
         -- =========================
-        -- Dracula Highlights（关键：独立出来）
+        -- Highlights（关键：独立出来，且随主题双轨）
         -- =========================
+        -- 深色轨：德古拉系原值；浅色轨：gruvbox（gradient-theme 浅色已切
+        -- gruvbox）。ColorScheme 事件在 gruvbox 应用后触发本函数重跑，
+        -- 光标行链接到 AlphaButtonSelected，所以浅色选中底取 gruvbox 的
+        -- bg1 #ebdbb2（与 CursorLine 色系一致，链接过去不冲突）。
         local function set_alpha_hl()
-            vim.cmd([[
-                highlight AlphaHeader   guifg=#bd93f9 gui=bold
-                highlight AlphaButtons  guifg=#f8f8f2
-                highlight AlphaShortcut guifg=#50fa7b gui=bold
-                highlight AlphaFooter   guifg=#6272a4
+            if vim.g.gradient_theme_mode == "light" then
+                vim.cmd([[
+                    highlight AlphaHeader   guifg=#8f3f71 gui=bold
+                    highlight AlphaButtons  guifg=#3c3836
+                    highlight AlphaShortcut guifg=#79740e gui=bold
+                    highlight AlphaFooter   guifg=#928374
 
-                highlight AlphaButtonSelected guibg=#44475a guifg=#f8f8f2
-                highlight link CursorLine AlphaButtonSelected
-            ]])
+                    highlight AlphaButtonSelected guibg=#ebdbb2 guifg=#3c3836
+                    highlight link CursorLine AlphaButtonSelected
+                ]])
+            else
+                vim.cmd([[
+                    highlight AlphaHeader   guifg=#bd93f9 gui=bold
+                    highlight AlphaButtons  guifg=#f8f8f2
+                    highlight AlphaShortcut guifg=#50fa7b gui=bold
+                    highlight AlphaFooter   guifg=#6272a4
+
+                    highlight AlphaButtonSelected guibg=#44475a guifg=#f8f8f2
+                    highlight link CursorLine AlphaButtonSelected
+                ]])
+            end
         end
 
         set_alpha_hl()
 
-        -- 防止 colorscheme 覆盖（重点）
+        -- 防止 colorscheme 覆盖（重点）；浅色轨 colorscheme gruvbox 后靠它恢复浅色值
         vim.api.nvim_create_autocmd("ColorScheme", {
             callback = set_alpha_hl,
         })
