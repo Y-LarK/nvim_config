@@ -1,12 +1,13 @@
--- gradient-theme —— 跟随 dms 深浅模式的双轨主题
+-- gradient-theme —— 双轨主题（当前固定深色，不跟随系统）
 --
--- 模式信号：DMS 切深浅时会以对应 --mode 重跑 matugen，后者重写
---   ~/.cache/niri-quickshell/colors.json
--- 取其中 surface 的 Rec.709 亮度判模式（> 0.5 为浅色），口径与
--- ~/.local/bin/theme-mode-sync 完全一致。文件缺失/解析失败一律回退 dark。
--- 运行中通过 uv_fs_event 监听该文件所在目录（监听文件本身会在 matugen
--- rename 替换时失效），防抖后重判，模式变化才重新应用 —— 换壁纸不切
--- 模式时幂等跳过。
+-- 跟随开关见下方 FOLLOW_SYSTEM：为 false 时启动即 apply("dark")，既不读
+-- colors.json 也不起 fs_event，系统切深浅完全不影响 nvim。
+-- 为 true 时恢复原跟随逻辑：DMS 切深浅会以对应 --mode 重跑 matugen，后者
+-- 重写 ~/.cache/niri-quickshell/colors.json；取其中 surface 的 Rec.709
+-- 亮度判模式（> 0.5 为浅色），口径与 ~/.local/bin/theme-mode-sync 完全一致。
+-- 文件缺失/解析失败一律回退 dark。运行中通过 uv_fs_event 监听该文件所在
+-- 目录（监听文件本身会在 matugen rename 替换时失效），防抖后重判，模式变化
+-- 才重新应用 —— 换壁纸不切模式时幂等跳过。
 --
 -- 双轨（2026-10-25 起）：
 --   dark  —— 自绘德古拉系色板，apply("dark") 手写全部高亮组，逐值不变。
@@ -16,10 +17,18 @@
 --            全部取自 gruvbox.vim 浅色相对色（faded 语法色 + bg0-4）。
 -- 背景两种模式都 transparent 跟随终端：深色下是 Nord 深底，浅色下是
 -- Material You surface（kitty 的 matugen-background.conf 提供浅底）。
+-- 注意：深色固定后系统若处于浅色，终端底是亮的，深色白字观感受影响；
+-- 用户明确要求保持透明，不要给 Normal 等组铺实底（2026-10-31）。
 -- 注意 morhetz/gruvbox 没有 g:gruvbox_transparent_bg —— 那是社区 fork
 -- 的选项（wiki 过时），透明必须由 apply_light 手动补。
 
 local M = {}
+
+-- 是否跟随 dms 系统深浅模式。
+--   false（当前）= 始终深色：启动即 apply("dark")，不读 colors.json、不起
+--                   fs_event，系统切深浅不会触发任何重刷。
+--   true          = 恢复原双轨跟随：启动按系统模式选轨，运行中实时跟随。
+local FOLLOW_SYSTEM = false
 
 local COLORS_DIR = vim.fs.normalize("~/.cache/niri-quickshell")
 local COLORS_FILE = COLORS_DIR .. "/colors.json"
@@ -630,13 +639,18 @@ local function start_watcher()
 end
 
 function M.setup()
-    local mode = M.detect()
+    -- FOLLOW_SYSTEM = false 时固定深色：不读 colors.json、不起 watcher，
+    -- 系统切深浅不会触发任何重刷（标签栏等外围插件也不会被重挂）。
+    local mode = FOLLOW_SYSTEM and M.detect() or "dark"
     vim.g.gradient_theme_mode = mode
     M.apply(mode)
     setup_doxygen()
-    start_watcher()
+    if FOLLOW_SYSTEM then
+        start_watcher()
+    end
 
-    -- 手动临时覆盖（不写任何状态，下次 fs_event 触发或重启后回到跟随系统）
+    -- 手动临时覆盖（不写任何状态；FOLLOW_SYSTEM = false 时不会自动切回，
+    -- 重启或再执行 :ThemeDark 恢复深色）
     vim.api.nvim_create_user_command("ThemeLight", function()
         vim.g.gradient_theme_mode = "light"
         M.apply("light")
