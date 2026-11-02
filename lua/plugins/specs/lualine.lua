@@ -44,6 +44,51 @@ return {
             },
         }
 
+        -- 按 Typora 口径统计字数：CJK 每字符计 1，其余按 ASCII 单词计 1；
+        -- 标点、空格和 Markdown 符号不计。结果按 bufnr + changedtick 缓存，
+        -- 避免大 md 文件每次状态栏重绘都全量扫描。
+        local function isCjkChar(cp)
+            return (cp >= 0x3400 and cp <= 0x4DBF)   -- 扩展 A
+                or (cp >= 0x4E00 and cp <= 0x9FFF)   -- 基本汉字
+                or (cp >= 0xF900 and cp <= 0xFAFF)   -- 兼容汉字
+                or (cp >= 0x3040 and cp <= 0x30FF)   -- 日文假名
+                or (cp >= 0xAC00 and cp <= 0xD7AF)   -- 谚文音节
+        end
+
+        local function isAsciiWordChar(cp)
+            return (cp >= 48 and cp <= 57)    -- 0-9
+                or (cp >= 65 and cp <= 90)    -- A-Z
+                or (cp >= 97 and cp <= 122)   -- a-z
+                or cp == 95                   -- _
+        end
+
+        local wordCountCache = { bufnr = -1, tick = -1, value = 0 }
+        local function typoraWordCount()
+            local bufnr = vim.api.nvim_get_current_buf()
+            local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+            if wordCountCache.bufnr == bufnr and wordCountCache.tick == tick then
+                return wordCountCache.value
+            end
+
+            local text = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
+            -- 用码点遍历而非正则：Vim 的 \%uXXXX 在字符类中不可靠。
+            local cjkChars, latinWords, inWord = 0, 0, false
+            for _, cp in ipairs(vim.fn.str2list(text)) do
+                if isCjkChar(cp) then
+                    cjkChars = cjkChars + 1
+                    inWord = false
+                elseif isAsciiWordChar(cp) then
+                    if not inWord then latinWords = latinWords + 1 end
+                    inWord = true
+                else
+                    inWord = false
+                end
+            end
+
+            wordCountCache = { bufnr = bufnr, tick = tick, value = cjkChars + latinWords }
+            return wordCountCache.value
+        end
+
         require("lualine").setup({
             options = {
                 theme                = function()
@@ -74,10 +119,7 @@ return {
                 },
                 lualine_x = {
                     {
-                        function()
-                            local wc = vim.fn.wordcount()
-                            return "W:" .. wc.words .. " C:" .. wc.chars
-                        end,
+                        function() return "字: " .. typoraWordCount() end,
                         cond = function() return vim.bo.filetype == "markdown" end,
                     },
                     {
