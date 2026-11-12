@@ -207,8 +207,8 @@ return {
                 float = { border = "rounded" },
             })
 
-            -- 光标停留自动显示 hover（类似 VSCode）
-            vim.o.updatetime = 800
+            -- 光标停留自动显示 hover（类似 VSCode）。
+            -- 延迟由 config/options.lua 的 updatetime（800ms）控制，这里不再重复设置。
 
             vim.api.nvim_create_autocmd("CursorHold", {
                 group = vim.api.nvim_create_augroup("UserLspHover", { clear = true }),

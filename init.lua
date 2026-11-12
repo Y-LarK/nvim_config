@@ -34,5 +34,4 @@ if vim.g.vscode then
 else
     require("plugins")
     require("config.keymaps")
-    require("config.options")
 end

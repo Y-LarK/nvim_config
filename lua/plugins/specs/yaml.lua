@@ -14,13 +14,6 @@ return {
             vim.list_extend(opts.ensure_installed, { "yaml-language-server", "prettier" })
         end,
     },
-
-    {
-        "stevearc/conform.nvim",
-        opts = {
-            formatters_by_ft = {
-                yaml = { "prettier" },
-            },
-        },
-    },
+    -- YAML 的格式化器统一在 conform.lua 的 formatters_by_ft 里配置，
+    -- 这里不再重复写一份，避免只改一边造成两处不一致。
 }

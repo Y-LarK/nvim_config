@@ -21,6 +21,8 @@ require("lazy").setup({
     checker = { enabled = true, notify = false },
 })
 
+-- Markdown 关闭拼写检查（中文误报过多）。这是 spell 的唯一设置点，
+-- config/options.lua 的 markdown FileType 里不再设置 spell。
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "markdown",
     callback = function()

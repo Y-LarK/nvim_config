@@ -32,7 +32,10 @@ opt.swapfile       = false
 opt.backup         = false
 
 -- 性能
-opt.updatetime     = 250
+-- updatetime 的唯一设置点：800ms，驱动 LSP 的自动 hover（CursorHold，见 specs/lsp.lua）。
+-- 放在这里而不是 lsp.lua：lsp 插件要 BufReadPre 才加载，在那之前 CursorHold
+-- 会按 nvim 默认的 4000ms 走，两处都写则后加载者静默覆盖前者。
+opt.updatetime     = 800
 opt.timeoutlen     = 300
 opt.termguicolors  = true
 opt.cursorline     = true -- 必须开启，CursorLineNr 才会生效
@@ -44,8 +47,8 @@ vim.api.nvim_create_autocmd("FileType", {
         opt_local.wrap = true
         opt_local.linebreak = true
         opt_local.breakindent = true
-        opt_local.spell = true
-        opt_local.spelllang = { "en_us", "cjk" }
+        -- 不开启 spell：中文写作时误报过多。plugins/init.lua 里另有一处显式关闭，
+        -- 此处不再设置，避免两处写反导致「看着开了实际没开」。
         opt_local.textwidth = 0
         opt_local.colorcolumn = ""
     end,
