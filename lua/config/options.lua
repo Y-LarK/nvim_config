@@ -87,11 +87,11 @@ vim.filetype.add({
     },
 })
 
--- 取消回车 / o / O 自动延续注释符（默认 formatoptions 的 r、o 标志）
+-- 展开回车 / o / O 自动延续注释符（formatoptions 的 r、o 标志）
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "*",
     callback = function()
-        vim.opt_local.formatoptions:remove({ "r", "o" })
+        vim.opt_local.formatoptions:append({ "r", "o" })
     end,
 })
 -- v 段同时管 Visual 与 Select 模式（guicursor 没有单独的 s 段，sm 是 showmatch）。
