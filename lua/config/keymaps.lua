@@ -156,6 +156,72 @@ map("n", "gi", function()
     require("telescope.builtin").lsp_implementations()
 end, { desc = "跳转到实现（虚函数的所有重写）" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
+-- 从第一个 '(' 起做括号配对，返回配对括号内的内容。
+-- 不能用 %((.-)%)：std::function<void(int)>、函数指针、含括号的默认值都会让它提前截断。
+local function extractParens(line)
+    local open = line:find("(", 1, true)
+    if not open then
+        return nil
+    end
+    local depth = 0
+    for i = open, #line do
+        local ch = line:sub(i, i)
+        if ch == "(" then
+            depth = depth + 1
+        elseif ch == ")" then
+            depth = depth - 1
+            if depth == 0 then
+                return line:sub(open + 1, i - 1)
+            end
+        end
+    end
+    return nil
+end
+
+-- 按「顶层逗号」切分参数列表：<> () {} 内部的逗号、字符串/字符字面量内的逗号都不算分隔符。
+-- 否则 QMap<int, int> m 会被切成两个假参数，默认值 "a,b" 同理。
+local function splitParams(params)
+    local out, buf = {}, {}
+    local depth = { ["<"] = 0, ["("] = 0, ["{"] = 0 }
+    local closer = { [">"] = "<", [")"] = "(", ["}"] = "{" }
+    local quote = nil
+    local i = 1
+    while i <= #params do
+        local ch = params:sub(i, i)
+        if quote then
+            -- 转义序列整体吞掉，避免 \" 被当成字符串结束
+            if ch == "\\" then
+                buf[#buf + 1] = params:sub(i, i + 1)
+                i = i + 1
+            else
+                if ch == quote then
+                    quote = nil
+                end
+                buf[#buf + 1] = ch
+            end
+        elseif ch == '"' or ch == "'" then
+            quote = ch
+            buf[#buf + 1] = ch
+        elseif depth[ch] then
+            depth[ch] = depth[ch] + 1
+            buf[#buf + 1] = ch
+        elseif closer[ch] then
+            depth[closer[ch]] = math.max(0, depth[closer[ch]] - 1)
+            buf[#buf + 1] = ch
+        elseif ch == "," and depth["<"] == 0 and depth["("] == 0 and depth["{"] == 0 then
+            out[#out + 1] = table.concat(buf)
+            buf = {}
+        else
+            buf[#buf + 1] = ch
+        end
+        i = i + 1
+    end
+    if #buf > 0 then
+        out[#out + 1] = table.concat(buf)
+    end
+    return out
+end
+
 map("n", "<leader>dc", function()
     -- 在函数/类/结构体上方生成 /** ... */ Doxygen 注释
     local row = vim.api.nvim_win_get_cursor(0)[1] - 1
@@ -165,10 +231,16 @@ map("n", "<leader>dc", function()
     local args, ret, is_class = {}, ""
     if fname then
         -- 函数
-        for a in (line:match("%((.-)%)") or ""):gmatch("[^,]+") do
-            -- 兼容数组 int arr[] / int arr[10]：先去掉 [..] 再取末尾单词
-            local name = (a:gsub("%[.*%]", "")):match("(%w+)%s*$") or ""
-            if name ~= "" and name ~= "void" then table.insert(args, name) end
+        for _, decl in ipairs(splitParams(extractParens(line) or "")) do
+            -- 先剥默认值（= nullptr / = {} / = 0），否则末尾单词会取到默认值本身
+            local sig = decl:gsub("%s*=%s*.*$", "")
+            -- 兼容数组 int arr[] / int arr[10]：去掉 [..] 再取末尾单词
+            sig = sig:gsub("%[.*%]", "")
+            -- 函数指针 void (*cb)(int)：名字在 (* 之后、) 之前
+            local name = sig:match("%*%s*([%w_]+)%s*%)") or sig:match("(%w+)%s*$") or ""
+            if name ~= "" and name ~= "void" then
+                table.insert(args, name)
+            end
         end
         -- 返回类型：先去行首缩进（类内成员声明有缩进），再跳过常见修饰符；
         -- 构造函数/析构函数取不到返回类型，按 void 处理（不加 @return）
