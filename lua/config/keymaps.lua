@@ -156,120 +156,109 @@ map("n", "gi", function()
     require("telescope.builtin").lsp_implementations()
 end, { desc = "跳转到实现（虚函数的所有重写）" })
 map("n", "<leader>ca", vim.lsp.buf.code_action, { desc = "代码操作" })
--- 从第一个 '(' 起做括号配对，返回配对括号内的内容。
--- 不能用 %((.-)%)：std::function<void(int)>、函数指针、含括号的默认值都会让它提前截断。
-local function extractParens(line)
-    local open = line:find("(", 1, true)
-    if not open then
-        return nil
+-- 参数名从语法树取：正则方案在 optional_parameter_declaration、函数指针、
+-- 模板嵌套等场景下必然出错，这几类节点无法用文本规则可靠区分。
+
+-- 沿 declarator 链取标识符。各层优先用 field("declarator")；
+-- reference_declarator（& name）和 parenthesized_declarator 内部没打 field，
+-- 退化为取第一个 named 子节点——必须用 named() 过滤，
+-- 否则会取到 & 这类匿名 token 而丢掉参数名。
+local function declaratorName(node)
+    local cur = node
+    while cur do
+        local t = cur:type()
+        if t == "identifier" or t == "field_identifier" then
+            return vim.treesitter.get_node_text(cur, 0)
+        end
+        local nxt = cur:field("declarator")[1]
+        if not nxt then
+            for child in cur:iter_children() do
+                if child:named() and child:type() ~= "parameter_list" then
+                    nxt = child
+                    break
+                end
+            end
+        end
+        cur = nxt
     end
-    local depth = 0
-    for i = open, #line do
-        local ch = line:sub(i, i)
-        if ch == "(" then
-            depth = depth + 1
-        elseif ch == ")" then
-            depth = depth - 1
-            if depth == 0 then
-                return line:sub(open + 1, i - 1)
+    return nil
+end
+
+-- 在声明节点里找函数声明子节点；跳过 parameter_list，
+-- 避免 int (*fn)(int) 里内层的 parameter_list 干扰。
+local function findFunctionDeclarator(node)
+    if node:type() == "function_declarator" then
+        return node
+    end
+    for child in node:iter_children() do
+        if child:type() ~= "parameter_list" then
+            local found = findFunctionDeclarator(child)
+            if found then
+                return found
             end
         end
     end
     return nil
 end
 
--- 按「顶层逗号」切分参数列表：<> () {} 内部的逗号、字符串/字符字面量内的逗号都不算分隔符。
--- 否则 QMap<int, int> m 会被切成两个假参数，默认值 "a,b" 同理。
-local function splitParams(params)
-    local out, buf = {}, {}
-    local depth = { ["<"] = 0, ["("] = 0, ["{"] = 0 }
-    local closer = { [">"] = "<", [")"] = "(", ["}"] = "{" }
-    local quote = nil
-    local i = 1
-    while i <= #params do
-        local ch = params:sub(i, i)
-        if quote then
-            -- 转义序列整体吞掉，避免 \" 被当成字符串结束
-            if ch == "\\" then
-                buf[#buf + 1] = params:sub(i, i + 1)
-                i = i + 1
-            else
-                if ch == quote then
-                    quote = nil
-                end
-                buf[#buf + 1] = ch
-            end
-        elseif ch == '"' or ch == "'" then
-            quote = ch
-            buf[#buf + 1] = ch
-        elseif depth[ch] then
-            depth[ch] = depth[ch] + 1
-            buf[#buf + 1] = ch
-        elseif closer[ch] then
-            depth[closer[ch]] = math.max(0, depth[closer[ch]] - 1)
-            buf[#buf + 1] = ch
-        elseif ch == "," and depth["<"] == 0 and depth["("] == 0 and depth["{"] == 0 then
-            out[#out + 1] = table.concat(buf)
-            buf = {}
-        else
-            buf[#buf + 1] = ch
+-- 向上定位光标所在的声明节点。就近原则：命中的第一个声明节点即为目标，
+-- 所以光标在函数体内的局部变量上时，得到的是那条局部 declaration（行为是有意为之），
+-- 想给整个函数加文档就把光标放到函数签名上。
+-- 不用 vim.treesitter.get_node()：它依赖 buffer 已 attach parser（即高亮已启动），
+-- 未开启 treesitter 高亮时会返回 nil，改为显式取 parser 再按位置定位。
+local function findTarget()
+    local ok, parser = pcall(vim.treesitter.get_parser, 0)
+    if not ok or not parser then
+        return nil
+    end
+    local tree = parser:parse()[1]
+    if not tree then
+        return nil
+    end
+    local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+    local root = tree:root()
+    -- 光标可能停在行尾之后（col 超出实际字符数），退回整行范围查找
+    local node = root:named_descendant_for_range(row - 1, col, row - 1, col)
+        or root:named_descendant_for_range(row - 1, 0, row - 1, math.max(0, #(vim.api.nvim_get_current_line()) - 1))
+    while node do
+        local t = node:type()
+        if t == "function_definition" or t == "declaration" or t == "field_declaration"
+            or t == "template_declaration" or t == "class_specifier"
+            or t == "struct_specifier" or t == "enum_specifier" then
+            return node
         end
-        i = i + 1
+        node = node:parent()
     end
-    if #buf > 0 then
-        out[#out + 1] = table.concat(buf)
-    end
-    return out
+    return nil
+end
+
+-- 非函数 / 非类型声明的降级行为：当前行尾追加 ///<
+local function lineComment()
+    vim.cmd("normal! A ///<  ")
+    vim.cmd("startinsert")
 end
 
 map("n", "<leader>dc", function()
-    -- 在函数/类/结构体上方生成 /** ... */ Doxygen 注释
-    local row = vim.api.nvim_win_get_cursor(0)[1] - 1
-    local line = vim.api.nvim_buf_get_lines(0, row, row + 1, false)[1] or ""
-    -- 解析：函数 / 类 / 结构体 / 枚举
-    local fname = line:match("%S+%s+([%w_]+)%s*%(") or line:match("([%w_]+)%s*%(")
-    local args, ret, is_class = {}, ""
-    if fname then
-        -- 函数
-        for _, decl in ipairs(splitParams(extractParens(line) or "")) do
-            -- 先剥默认值（= nullptr / = {} / = 0），否则末尾单词会取到默认值本身
-            local sig = decl:gsub("%s*=%s*.*$", "")
-            -- 兼容数组 int arr[] / int arr[10]：去掉 [..] 再取末尾单词
-            sig = sig:gsub("%[.*%]", "")
-            -- 函数指针 void (*cb)(int)：名字在 (* 之后、) 之前
-            local name = sig:match("%*%s*([%w_]+)%s*%)") or sig:match("(%w+)%s*$") or ""
-            if name ~= "" and name ~= "void" then
-                table.insert(args, name)
-            end
-        end
-        -- 返回类型：先去行首缩进（类内成员声明有缩进），再跳过常见修饰符；
-        -- 构造函数/析构函数取不到返回类型，按 void 处理（不加 @return）
-        local head = line:gsub("^%s+", "")
-        for _, kw in ipairs({ "virtual", "static", "inline", "explicit", "constexpr", "friend", "extern" }) do
-            head = head:gsub("^" .. kw .. "%s+", "")
-        end
-        ret = head:match("^(.-)%s*[%w_~]+%s*%(") or "void"
-        if ret == "" then
-            ret = "void"
-        end
-    else
-        -- 类 / 结构体 / 枚举
-        fname = line:match("class%s+([%w_]+)") or line:match("struct%s+([%w_]+)") or line:match("enum%s+([%w_]+)")
-        is_class = fname ~= nil
-    end
-    if not fname then
-        -- 不是函数/类 → 行尾添加 ///< 注释
-        vim.cmd("normal! A ///<  ")
-        vim.cmd("startinsert")
+    local target = findTarget()
+    if not target then
+        lineComment()
         return
     end
-    -- 构造注释
-    local comment = { "/**" }
-    table.insert(comment, " * @brief  ")
-    if is_class then
-        -- 类 / 结构体 / 枚举 模板
-        local kind = line:match("(class)") or line:match("(struct)") or line:match("(enum)") or "class"
-        comment = {
+
+    -- 插入点用声明的起始行，多行函数签名也能插在正确位置
+    local row = select(1, target:start())
+    local kind = target:type():match("^(%a+)_")
+
+    -- 类 / 结构体 / 枚举
+    if kind == "class" or kind == "struct" or kind == "enum" then
+        -- 类型名挂在 field("name")；枚举的枚举项在 body 里，不会误取
+        local nameNode = target:field("name")[1]
+        local fname = nameNode and vim.treesitter.get_node_text(nameNode, 0)
+        if not fname then
+            lineComment()
+            return
+        end
+        local comment = {
             "/**",
             " * @" .. kind .. " " .. fname,
             " * @brief  ",
@@ -281,14 +270,73 @@ map("n", "<leader>dc", function()
         vim.cmd("startinsert!")
         return
     end
+
+    -- 光标停在 template<...> 行时，真正的声明在 template_declaration 里。
+    -- 内层 declaration 没有 field 名，只能按类型找。
+    local decl = target
+    if decl:type() == "template_declaration" then
+        local inner
+        for child in decl:iter_children() do
+            if child:type() == "declaration" then
+                inner = child
+                break
+            end
+        end
+        if inner then
+            decl = inner
+        end
+    end
+
+    local fd = findFunctionDeclarator(decl)
+    if not fd then
+        -- 变量声明等非函数节点，不做注释骨架
+        lineComment()
+        return
+    end
+
+    -- 函数名：析构函数的 declarator 是 destructor_name，不含 field("declarator")
+    local fname
+    local d = fd:field("declarator")[1]
+    if d then
+        if d:type() == "destructor_name" then
+            fname = vim.treesitter.get_node_text(d, 0)
+        else
+            fname = declaratorName(d)
+        end
+    end
+    if not fname then
+        lineComment()
+        return
+    end
+
+    -- 参数：parameter_declaration 与 optional_parameter_declaration（有默认值）平级
+    local args = {}
+    local plist = fd:field("parameters")[1]
+    if plist then
+        for child in plist:iter_children() do
+            local ct = child:type()
+            if ct == "parameter_declaration" or ct == "optional_parameter_declaration" then
+                local pd = child:field("declarator")[1]
+                local pname = pd and declaratorName(pd)
+                if pname then
+                    table.insert(args, pname)
+                end
+            end
+        end
+    end
+
+    -- 构造 / 析构函数在 AST 里没有 type 字段，自然不生成 @return
+    local retNode = decl:field("type")[1]
+    local ret = retNode and vim.treesitter.get_node_text(retNode, 0) or ""
+
+    local comment = { "/**", " * @brief  " }
     for _, a in ipairs(args) do
         table.insert(comment, " * @param " .. a .. "  ")
     end
-    if ret and ret ~= "void" then
+    if ret ~= "" and ret ~= "void" then
         table.insert(comment, " * @return  ")
     end
     table.insert(comment, " */")
-    -- 插入到定义行上方
     vim.api.nvim_buf_set_lines(0, row, row, false, comment)
     vim.api.nvim_win_set_cursor(0, { row + 2, 11 })
     vim.cmd("startinsert!")
