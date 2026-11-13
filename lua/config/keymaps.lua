@@ -261,8 +261,8 @@ map("n", "<leader>dc", function()
         local comment = {
             "/**",
             " * @" .. kind .. " " .. fname,
-            " * @brief  ",
-            " * @note  ",
+            " * @brief ",
+            " * @note ",
             " */",
         }
         vim.api.nvim_buf_set_lines(0, row, row, false, comment)
@@ -329,16 +329,17 @@ map("n", "<leader>dc", function()
     local retNode = decl:field("type")[1]
     local ret = retNode and vim.treesitter.get_node_text(retNode, 0) or ""
 
-    local comment = { "/**", " * @brief  " }
+    local comment = { "/**", " * @brief " }
     for _, a in ipairs(args) do
-        table.insert(comment, " * @param " .. a .. "  ")
+        table.insert(comment, " * @param " .. a .. " ")
     end
     if ret ~= "" and ret ~= "void" then
-        table.insert(comment, " * @return  ")
+        table.insert(comment, " * @return ")
     end
     table.insert(comment, " */")
     vim.api.nvim_buf_set_lines(0, row, row, false, comment)
-    vim.api.nvim_win_set_cursor(0, { row + 2, 11 })
+    -- col 是 0-based 字节列，" * @brief " 共 10 字符，10 即行尾之后
+    vim.api.nvim_win_set_cursor(0, { row + 2, 10 })
     vim.cmd("startinsert!")
 end, { desc = "生成 Doxygen 注释" })
 map("n", "<leader>lk", vim.lsp.buf.signature_help, { desc = "函数签名" })
