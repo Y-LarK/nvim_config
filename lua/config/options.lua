@@ -87,11 +87,15 @@ vim.filetype.add({
     },
 })
 
--- 展开回车 / o / O 自动延续注释符（formatoptions 的 r、o 标志）
+-- 只在 Insert 模式回车时自动延续注释符（formatoptions 的 r）。
+-- 不启用 o：Normal 模式的 o / O 新开行也续注释，容易在不想要注释时带出 //，
+-- 想新起一行普通代码时反而要多删一次。
+-- 注意 append/remove 只接受 string，传 table 会被 set+= 解析成垃圾字符。
 vim.api.nvim_create_autocmd("FileType", {
     pattern = "*",
     callback = function()
-        vim.opt_local.formatoptions:append({ "r", "o" })
+        vim.opt_local.formatoptions:remove("o")
+        vim.opt_local.formatoptions:append("r")
     end,
 })
 -- v 段同时管 Visual 与 Select 模式（guicursor 没有单独的 s 段，sm 是 showmatch）。
