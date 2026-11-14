@@ -23,6 +23,9 @@ vim.filetype.add({
 
 require("config.options")
 
+-- 新建空头文件自动补 #ifndef 守卫（模块内部对 vscode 模式自行短路）
+require("config.header_guard")
+
 if vim.g.vscode then
     require("plugins")
     require("config.keymaps_vscode")
