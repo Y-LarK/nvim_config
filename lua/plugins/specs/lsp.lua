@@ -159,11 +159,46 @@ return {
                 end
             end
 
+            -- 虚拟 buffer（diffview://、fugitive:// 之类）不是真实文件：
+            -- 它们的 buftype 为空、filetype 又能被 detect 出来，于是 LSP 会正常 attach；
+            -- 但 vim.uri_from_bufnr 对自定义 scheme 是原样透传（不会补 file://），
+            -- 而 clangd 只接受 file:// 的 workspace 文件，任何请求都会回
+            -- "-32602: failed to decode ... at (root).textDocument.uri"。
+            -- 这类 buffer 的内容是 diff 拼接出来的，LSP 本来也分析不了，直接 detach。
+            -- 性能/正确性：本 autocmd 必须注册在任何其它 LspAttach 处理器之前 ——
+            -- 同一事件按注册顺序执行，晚注册的话 inlay hint 请求已经发出去了。
+            local function isRealFileBuffer(bufnr)
+                return vim.uri_from_bufnr(bufnr):sub(1, 5) == "file:"
+            end
+
+            -- 必须 vim.schedule 延后 detach，不能就地调用：
+            -- Client:on_attach 的流程是「派发 LspAttach → 跑 on_attach 回调 →
+            -- 最后一行才写 attached_buffers[bufnr]」（runtime/lua/vim/lsp/client.lua）。
+            -- 在 LspAttach 里 detach 会被最后那行无条件写回去，等于没删。
+            vim.api.nvim_create_autocmd("LspAttach", {
+                group = vim.api.nvim_create_augroup("UserLspRealFilesOnly", { clear = true }),
+                callback = function(args)
+                    if isRealFileBuffer(args.buf) then return end
+                    local bufnr, clientId = args.buf, args.data.client_id
+                    vim.schedule(function()
+                        -- 延后期间 buffer 可能已被 wipe
+                        if not vim.api.nvim_buf_is_valid(bufnr) then return end
+                        local client = vim.lsp.get_client_by_id(clientId)
+                        if client and client.attached_buffers[bufnr] then
+                            vim.lsp.buf_detach_client(bufnr, clientId)
+                        end
+                    end)
+                end,
+            })
+
             -- navic attach
             if ok_navic then
                 vim.api.nvim_create_autocmd("LspAttach", {
                     group = vim.api.nvim_create_augroup("UserNavicAttach", { clear = true }),
                     callback = function(args)
+                        -- 上面的 detach 只是解绑，get_client_by_id 仍能拿到对象，
+                        -- 所以这里要自己挡一次，否则 documentSymbol 还会发出去
+                        if not isRealFileBuffer(args.buf) then return end
                         local client = vim.lsp.get_client_by_id(args.data.client_id)
                         if client and client.server_capabilities.documentSymbolProvider then
                             navic.attach(client, args.buf)
@@ -176,6 +211,7 @@ return {
             vim.api.nvim_create_autocmd("LspAttach", {
                 group = vim.api.nvim_create_augroup("UserInlayHints", { clear = true }),
                 callback = function(args)
+                    if not isRealFileBuffer(args.buf) then return end
                     local client = vim.lsp.get_client_by_id(args.data.client_id)
                     if client and client.server_capabilities.inlayHintProvider then
                         vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
