@@ -60,67 +60,134 @@ map({ "n", "o", "x" }, "R", function() require("flash").treesitter_search() end,
 -- cmake
 map("n", "<leader>cg", "<cmd>CMakeGenerate<cr>", { desc = "CMake 生成 (Generate)" })
 map("n", "<leader>cb", "<cmd>CMakeBuild<cr>", { desc = "CMake 构建 (Build)" })
-map("n", "<leader>cr", "<cmd>CMakeRun<cr>", { desc = "CMake 运行 (Run)" })
+map("n", "<leader>cr", "<cmd>CMakeRun<cr>", { desc = "运行（首次需选启动目标）" })
 map("n", "<leader>cd", "<cmd>CMakeDebug<cr>", { desc = "CMake 调试 (Debug)" })
-map("n", "<leader>ct", "<cmd>CMakeSelectTarget<cr>", { desc = "选择构建目标" })
+-- 选择构建预设（debug/tests/release）：决定整套构建配置，选一次后 <leader>cb 沿用它
+map("n", "<leader>cp", "<cmd>CMakeSelectBuildPreset<cr>", { desc = "选择构建预设 (Build Preset)" })
+-- 选择构建目标；临时过滤掉 utility 类（include(CTest) 的 28 个 Dashboard 目标等噪音）
+map("n", "<leader>ct", function()
+    local orig = vim.ui.select
+    vim.ui.select = function(items, opts, on_choice)
+        vim.ui.select = orig -- 先还原，避免影响后续交互
+        local filtered = {}
+        for _, item in ipairs(items) do
+            if not tostring(item):match("%(utility%)$") then
+                filtered[#filtered + 1] = item
+            end
+        end
+        return orig(filtered, opts, on_choice)
+    end
+    local ok, err = pcall(vim.cmd, "CMakeSelectBuildTarget")
+    if not ok then
+        vim.ui.select = orig
+        error(err)
+    end
+end, { desc = "选择构建目标（过滤 utility）" })
+-- 跑测试：插件内部用 ctest；若先用 CMakeSelectTestPreset 选过 preset，会走 ctest --preset
+map("n", "<leader>cT", "<cmd>CMakeRunTest<cr>", { desc = "CMake 运行测试 (Run Tests)" })
 -- 清理当前构建缓存（cmake-tools 以 nvim 工作目录为项目根；无缓存时它会静默返回，这里补上提示）
+-- 缓存位置不假设 build/：同时识别 preset 的 out/ 与 CLion 的 cmake-build-*
 map("n", "<leader>cc", function()
-    local caches = vim.fn.glob(vim.fn.getcwd() .. "/build/*/CMakeCache.txt", false, true)
+    local root = vim.fn.getcwd()
+    local caches = {}
+    for _, pattern in ipairs({
+        "/CMakeCache.txt",
+        "/build/CMakeCache.txt",
+        "/build/*/CMakeCache.txt",
+        "/out/CMakeCache.txt",
+        "/out/*/CMakeCache.txt",
+        "/cmake-build-*/CMakeCache.txt",
+        "/cmake-build-*/*/CMakeCache.txt",
+    }) do
+        vim.list_extend(caches, vim.fn.glob(root .. pattern, false, true))
+    end
     if #caches == 0 then
         vim.notify("没有可清理的构建缓存，请先 <leader>cg 生成", vim.log.levels.WARN)
         return
     end
     vim.cmd("CMakeClean")
 end, { desc = "CMake 清理 (Clean)" })
--- 删除 build 目录（含 cmake-tools 在项目根建的 compile_commands.json 软链，避免留下坏链）
+-- 只删 CMake 生成物，保留构建目录里用户放的运行时文件（config.json、模型等）
+-- 构建目录以 CMakeCache.txt 为标志定位，覆盖 build/<variant>、preset 的 out/、CLion 的 cmake-build-*
 map("n", "<leader>cX", function()
     local root = vim.fn.getcwd()
-    local build = root .. "/build"
-    local link = root .. "/compile_commands.json"
-    local removed = {}
-
-    if vim.fn.getftype(link) == "link" then
-        vim.fn.delete(link)
-        removed[#removed + 1] = "compile_commands.json 软链"
-    end
-
-    if vim.fn.isdirectory(build) == 1 then
-        vim.fn.delete(build, "rf")
-        if vim.fn.isdirectory(build) == 1 then
-            vim.notify("删除 build 目录失败：" .. build, vim.log.levels.ERROR)
-            return
+    local cache_patterns = {
+        "/CMakeCache.txt",
+        "/build/CMakeCache.txt",
+        "/build/*/CMakeCache.txt",
+        "/out/CMakeCache.txt",
+        "/out/*/CMakeCache.txt",
+        "/cmake-build-*/CMakeCache.txt",
+        "/cmake-build-*/*/CMakeCache.txt",
+    }
+    local build_dirs, seen = {}, {}
+    for _, pattern in ipairs(cache_patterns) do
+        for _, cache in ipairs(vim.fn.glob(root .. pattern, false, true)) do
+            local dir = vim.fn.fnamemodify(cache, ":h")
+            if not seen[dir] then
+                seen[dir] = true
+                build_dirs[#build_dirs + 1] = dir
+            end
         end
-        table.insert(removed, 1, "build 目录")
     end
 
-    if #removed == 0 then
-        vim.notify("未找到 build 目录：" .. build, vim.log.levels.WARN)
-    else
-        vim.notify("已删除 " .. table.concat(removed, " + "), vim.log.levels.INFO)
-    end
-end, { desc = "删除 build 目录" })
-map("n", "<leader>ck", "<cmd>CMakeStop<cr>", { desc = "停止当前任务" })
+    -- 白名单：只删这些生成物，目录本身和其它文件一律保留
+    local state_names = {
+        "CMakeCache.txt",
+        "CMakeFiles",
+        ".cmake",
+        "build.ninja",
+        "rules.ninja",
+        ".ninja_deps",
+        ".ninja_log",
+        "Makefile",
+        "cmake_install.cmake",
+        "CMakeScripts",
+        "compile_commands.json",
+        "CTestTestfile.cmake",
+        "Testing",
+        "DartConfiguration.tcl",
+    }
 
--- 切换构建类型（Debug/Release）并生成：复用插件的 CMakeSelectBuildType，自动选中目标类型
-local function switch_build_type(target)
-    return function()
-        local orig_select = vim.ui.select
-        vim.ui.select = function(items, opts, on_choice)
-            vim.ui.select = orig_select -- 先还原，避免影响后续交互
-            for _, item in ipairs(items) do
-                local short = type(item) == "table" and item.short or item
-                if short == target then
-                    return on_choice(item)
+    local removed = 0
+    for _, dir in ipairs(build_dirs) do
+        for _, name in ipairs(state_names) do
+            local path = dir .. "/" .. name
+            if vim.fn.getftype(path) ~= "" then
+                vim.fn.delete(path, "rf")
+                if vim.fn.getftype(path) == "" then
+                    removed = removed + 1
                 end
             end
-            return on_choice(nil)
         end
-        vim.cmd("CMakeSelectBuildType")
     end
-end
 
-map("n", "<leader>cR", switch_build_type("Release"), { desc = "CMake 切 Release 并生成" })
-map("n", "<leader>cD", switch_build_type("Debug"), { desc = "CMake 切 Debug 并生成" })
+    -- cmake-tools 在项目根建的编译数据库软链，避免留下坏链
+    local link = root .. "/compile_commands.json"
+    if vim.fn.getftype(link) == "link" then
+        vim.fn.delete(link)
+        removed = removed + 1
+    end
+
+    if removed == 0 then
+        vim.notify("没有可清理的 CMake 状态", vim.log.levels.WARN)
+        return
+    end
+
+    local shown = {}
+    for i, dir in ipairs(build_dirs) do
+        if i > 3 then
+            shown[#shown + 1] = "…"
+            break
+        end
+        shown[#shown + 1] = vim.fn.fnamemodify(dir, ":~:.")
+    end
+    vim.notify(
+        ("已清理 %d 项 CMake 状态（%s；运行时文件已保留）"):format(removed, table.concat(shown, ", ")),
+        vim.log.levels.INFO
+    )
+end, { desc = "CMake 清理状态（保留运行时文件）" })
+map("n", "<leader>ck", "<cmd>CMakeStop<cr>", { desc = "停止当前任务" })
 
 -- 平滑滚动快捷键 (Neoscroll)
 -- 使用插件默认的函数来实现平滑翻页

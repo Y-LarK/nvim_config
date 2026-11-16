@@ -48,9 +48,27 @@ return {
                         },
                     },
                 },
+
+                -- ui-select 扩展的主题（接管 vim.ui.select 时使用）
+                extensions = {
+                    ["ui-select"] = {
+                        require("telescope.themes").get_dropdown({}),
+                    },
+                },
             })
 
             pcall(telescope.load_extension, "fzf")
+        end,
+    },
+    {
+        -- 接管 vim.ui.select，让 cmake-tools 的目标列表等变成可模糊搜索的 telescope 列表。
+        -- 放 VeryLazy：不阻塞启动，但保证首次按 <leader>ct 之前已经生效。
+        "nvim-telescope/telescope-ui-select.nvim",
+        cond = not vim.g.vscode,
+        event = "VeryLazy",
+        dependencies = { "nvim-telescope/telescope.nvim" },
+        config = function()
+            require("telescope").load_extension("ui-select")
         end,
     },
 }
