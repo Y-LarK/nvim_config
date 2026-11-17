@@ -9,7 +9,11 @@ opt.clipboard      = "unnamedplus"
 -- 行号
 opt.number         = true
 opt.relativenumber = true
-opt.fillchars      = { eob = " ", foldopen = "▼", foldclose = "▶", foldsep = "│" } -- 隐藏缓冲区末尾的 ~ 占位符；foldopen/close/sep 为折叠列符号（配合 nvim-ufo）
+-- 隐藏缓冲区末尾的 ~ 占位符；foldopen/close/sep/foldinner 为折叠列符号。
+-- 注意 ufo.lua 里 foldcolumn 已设为 0，所以折叠列那几项当前不生效，保留备查：
+-- 将来若重新打开 foldcolumn，foldinner 用来顶替窄列放不下嵌套时显示的层级数字
+-- （见 :h fold-foldcolumn）
+opt.fillchars      = { eob = " ", foldopen = "▼", foldclose = "▶", foldsep = "│", foldinner = " " }
 
 -- 缩进
 opt.tabstop        = 4

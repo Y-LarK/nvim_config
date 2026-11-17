@@ -7,45 +7,15 @@ return {
         init = function()
             -- ufo 依赖的全局选项（README quickstart 要求）：ufo 内部把 foldmethod
             -- 转为 manual 并用 extmark 管折叠，foldlevel 必须足够大才能保持展开态
-            vim.o.foldcolumn = "1" -- 常驻折叠列，宽度固定 1，下方折叠列点击处理器依赖该值
+            -- foldcolumn=0：不显示折叠列（2026-11-17 用户要求；折叠统一走 Tab / za）
+            -- 注意 options.lua 里的 foldopen/foldclose/foldsep/foldinner 在此配置下不生效
+            vim.o.foldcolumn = "0"
             vim.o.foldlevel = 99
             vim.o.foldlevelstart = 99
             vim.o.foldenable = true
         end,
         config = function()
             local ufo = require("ufo")
-
-            -- 单击折叠列：在鼠标所在行切换折叠（VSCode 式交互）。
-            -- nvim 0.12 无原生折叠列点击（help 无相关标签），自行实现：
-            -- getmousepos().wincol 从窗口最左 gutter 起算，foldcolumn 是 gutter 最左列，
-            -- 全局 foldcolumn=1，故 wincol<=1 即落在折叠列。其余情况手工模拟默认
-            -- <LeftMouse> 行为（切窗口 + 移光标）——不能用 feedkeys("<LeftMouse>")，
-            -- 那会再次触发本映射导致递归。Telescope/nvim-tree 等插件的 <LeftMouse>
-            -- 是 buffer-local 映射，优先级高于全局映射，不会被这里盖住。
-            vim.keymap.set("n", "<LeftMouse>", function()
-                local pos = vim.fn.getmousepos()
-                if pos.winid == 0 then
-                    return
-                end
-                local foldcolWidth = tonumber(vim.wo[pos.winid].foldcolumn) or 0
-                if pos.winid == vim.api.nvim_get_current_win()
-                    and foldcolWidth > 0 and pos.wincol <= foldcolWidth then
-                    if pos.line > 0 then
-                        vim.api.nvim_win_set_cursor(pos.winid, { pos.line, 0 })
-                        vim.cmd("normal! za")
-                    end
-                    return
-                end
-                -- 非折叠列：还原默认点击行为
-                if vim.api.nvim_win_is_valid(pos.winid) then
-                    if pos.winid ~= vim.api.nvim_get_current_win() then
-                        vim.api.nvim_set_current_win(pos.winid)
-                    end
-                    if pos.line > 0 then
-                        vim.api.nvim_win_set_cursor(pos.winid, { pos.line, math.max(0, pos.column - 1) })
-                    end
-                end
-            end)
 
             vim.keymap.set("n", "zR", ufo.openAllFolds, { desc = "折叠: 全部展开" })
             vim.keymap.set("n", "zM", ufo.closeAllFolds, { desc = "折叠: 全部折叠" })
@@ -75,8 +45,8 @@ return {
             -- 1) 原 buffer 上有打开的 hover 浮窗（open_floating_preview 在原 buffer 上
             --    设 lsp_floating_preview = 浮窗 winid）→ 进入浮窗
             -- 2) 已在浮窗内（浮窗窗口上有 lsp_floating_bufnr = 原 buffer id）→ 切回原窗口
-            -- 3) 都不是 → 回退原生 <Tab> 行为（跳转列表前进，与 <C-i> 等价；
-            --    feedkeys 用 noremap 模式，不会递归触发本映射）
+            -- 3) 都不是 → 折叠/展开当前行（等价 za；仅 normal 模式，insert 模式的 <Tab>
+            --    是 blink 的补全键，不受影响）
             -- 不冲突：ufo 折叠预览开着时其 buffer-local <Tab>（switch）优先级更高；
             -- aerial/nvim-tree/telescope 的 buffer-local <Tab> 同理。
             -- 已实测 0.12：切进浮窗不会触发 BufLeave 自动关闭（豁免名单含浮窗自身）。
@@ -96,8 +66,9 @@ return {
                     vim.api.nvim_set_current_win(floatWin)
                     return
                 end
-                vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-i>", true, false, true), "n", false)
-            end, { desc = "进入/离开 LSP hover 浮窗，或跳转列表前进" })
+                -- ufo 无 toggleFold API，用原生 za（上面鼠标点击处理器同款做法）
+                vim.cmd("normal! za")
+            end, { desc = "折叠/展开当前块，或进出 LSP hover 浮窗" })
 
 
             ufo.setup({
