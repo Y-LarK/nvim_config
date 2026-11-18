@@ -97,7 +97,8 @@ return {
                 component_separators = { left = "", right = "" },
                 section_separators   = { left = "", right = "" },
                 globalstatus         = true,
-                disabled_filetypes   = { statusline = { "dashboard", "alpha", "NvimTree" } },
+                -- 不设 disabled_filetypes：所有窗口（含 NvimTree、alpha 启动页）都显示状态栏，
+                -- 这样才能在调文件树宽度时看到 resize 模式指示
             },
 
             sections = {
@@ -118,6 +119,18 @@ return {
                     },
                 },
                 lualine_x = {
+                    -- 窗口调整模式指示。该全局变量由 config/window_resize.lua 维护：
+                    -- 模式是阻塞式 getcharstr 循环，lualine 收不到事件，由那边手动 refresh。
+                    -- 紫色与 normal 模式的 a 段呼应，深浅主题各取一套。
+                    {
+                        function() return vim.g.window_resize_mode or "" end,
+                        cond = function() return vim.g.window_resize_mode ~= nil end,
+                        color = function()
+                            local purple = { dark = "#cfacff", light = "#8f3f71" }
+                            return { fg = vim.g.gradient_theme_mode == "light" and purple.light or purple.dark }
+                        end,
+                        left_padding = 1,
+                    },
                     {
                         function() return "字: " .. typoraWordCount() end,
                         cond = function() return vim.bo.filetype == "markdown" end,
