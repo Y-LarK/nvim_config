@@ -2,6 +2,12 @@ local opt          = vim.opt
 
 opt.mouse          = "a"          -- 全模式启用鼠标
 
+-- 分屏方向：水平分屏开在当前窗口下方。
+-- Vim 默认是 nosplitbelow（开在上方）；cmake-tools.nvim 的 terminal backend
+-- 用 `:horizontal <N>sp` 建 runner 窗口，而 :horizontal 只是修饰符，
+-- 真正决定上下的是这个选项 —— 不开则 CMake 终端会顶在屏幕最上面。
+opt.splitbelow     = true
+
 vim.o.winborder    = "rounded"
 -- 系统剪贴板
 opt.clipboard      = "unnamedplus"
