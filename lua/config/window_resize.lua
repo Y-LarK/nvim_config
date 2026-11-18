@@ -122,15 +122,16 @@ end
 function M.setup()
     local map = vim.keymap.set
 
-    map("n", "<leader>z>", function()
+    -- 键位全部避开需要按 Shift 的字符：. 与 , 代替 > 与 <，= 代替 +
+    map("n", "<leader>z.", function()
         M.resize("width", currentStep())
     end, { desc = "窗口加宽" })
 
-    map("n", "<leader>z<", function()
+    map("n", "<leader>z,", function()
         M.resize("width", -currentStep())
     end, { desc = "窗口变窄" })
 
-    map("n", "<leader>z+", function()
+    map("n", "<leader>z=", function()
         M.resize("height", currentStep())
     end, { desc = "窗口加高" })
 
@@ -138,7 +139,7 @@ function M.setup()
         M.resize("height", -currentStep())
     end, { desc = "窗口减高" })
 
-    map("n", "<leader>z=", M.equalize, { desc = "窗口均分" })
+    map("n", "<leader>z0", M.equalize, { desc = "窗口均分" })
 
     -- which-key 是 VeryLazy 才加载的，必须等它加载完再注册分组标签，
     -- 否则 require 直接失败
