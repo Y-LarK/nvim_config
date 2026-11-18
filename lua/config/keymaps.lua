@@ -497,7 +497,8 @@ map("n", "<leader>hi", function()
         return
     end
 
-    local row = vim.api.nvim_win_get_cursor(0)[1]
+    local cursor = vim.api.nvim_win_get_cursor(0)
+    local row, col = cursor[1], cursor[2]
     -- 声明可能跨行（参数多时换行书写），从光标行起向下累计到括号配平或遇到 ';'，
     -- 最多读 50 行兜底，避免异常输入时一路读到文件尾
     local parts, depth, seen_paren = {}, 0, false
@@ -520,12 +521,67 @@ map("n", "<leader>hi", function()
     end
     local line = table.concat(parts, " ")
 
-    -- 向上找最近的 class/struct（函数实现与静态成员定义共用）
-    local function find_class(from_row)
+    -- 找光标所属的 class/struct（函数实现与静态成员定义共用）。
+    --
+    -- 旧实现是从光标行向上取第一个以 class/struct 开头的行，类里只要有嵌套的
+    -- struct/class 定义就会取错：实测 class Logger 里嵌套 struct LogRecord 时，
+    -- 在 static Logger& instance(); 上触发会把实现生成成 LogRecord::instance()。
+    -- 现在优先交给 treesitter：沿语法树父节点上溯，嵌套结构体 / 嵌套类天然跨过。
+    local function find_class(from_row, from_col)
+        local ok_parser, parser = pcall(vim.treesitter.get_parser, 0, "cpp")
+        if ok_parser and parser then
+            local ok_parse, trees = pcall(parser.parse, parser)
+            if ok_parse and trees and trees[1] then
+                local node = trees[1]:root():named_descendant_for_range(
+                    from_row - 1, from_col, from_row - 1, from_col)
+                while node do
+                    local ntype = node:type()
+                    if ntype == "class_specifier" or ntype == "struct_specifier" then
+                        local name = node:field("name")[1]
+                        if name then
+                            return vim.treesitter.get_node_text(name, 0)
+                        end
+                    end
+                    node = node:parent()
+                end
+                -- 走到根还没找到类：光标不在任何类/结构体内，让调用方提示，
+                -- 不再退回「向上找第一个 class 行」——那会取到上文的无关类型
+                return nil
+            end
+        end
+
+        -- 回退（cpp parser 不可用或解析失败）：花括号配对扫描。
+        -- 从光标行向上维护「还差几个 '}' 才回到外层」的深度，遇到深度为 0 的 '{'
+        -- 即包住光标的块；其同行或上方紧邻的 class/struct 声明就是所属类型。
+        -- 局限：不做词法分析，注释/字符串里的花括号会干扰。
+        local depth = 0
         for i = from_row, 1, -1 do
-            local l = vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1] or ""
-            local c = l:match("^%s*class%s+([%w_]+)") or l:match("^%s*struct%s+([%w_]+)")
-            if c then return c end
+            local l = (vim.api.nvim_buf_get_lines(0, i - 1, i, false)[1] or ""):gsub("//.*$", "")
+            -- 第一个扫描行只看光标之前的部分，光标右侧的括号属于别的语句
+            local stop = (i == from_row) and from_col or #l
+            for j = stop, 1, -1 do
+                local ch = l:sub(j, j)
+                if ch == "}" then
+                    depth = depth + 1
+                elseif ch == "{" then
+                    if depth == 0 then
+                        local head = l:sub(1, j)
+                        local c = head:match("class%s+([%w_]+)") or head:match("struct%s+([%w_]+)")
+                        if c then return c end
+                        -- 开括号单独成行（本项目常见风格），往上找声明头
+                        for k = i - 1, math.max(1, i - 10), -1 do
+                            local pl = vim.api.nvim_buf_get_lines(0, k - 1, k, false)[1] or ""
+                            local pc = pl:match("^%s*class%s+([%w_]+)")
+                                or pl:match("^%s*struct%s+([%w_]+)")
+                            if pc then return pc end
+                            -- 遇到分号说明上一个声明已结束，继续往上会误取别的类型
+                            if pl:find(";", 1, true) then break end
+                        end
+                        return nil
+                    end
+                    depth = depth - 1
+                end
+            end
         end
         return nil
     end
@@ -578,7 +634,7 @@ map("n", "<leader>hi", function()
             return
         end
 
-        local cls = find_class(row)
+        local cls = find_class(row, col)
         if not cls then
             vim.notify("未找到所属 class/struct", vim.log.levels.WARN)
             return
@@ -639,7 +695,7 @@ map("n", "<leader>hi", function()
         :gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 
     -- 所属类：向上找最近的 class/struct
-    local cls = find_class(row)
+    local cls = find_class(row, col)
     if not cls then
         vim.notify("未找到所属 class/struct", vim.log.levels.WARN)
         return
