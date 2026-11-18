@@ -37,4 +37,6 @@ if vim.g.vscode then
 else
     require("plugins")
     require("config.keymaps")
+    -- 统一的 <leader>z 窗口尺寸调整（文件树 / 终端 / diff 分屏）
+    require("config.window_resize").setup()
 end
