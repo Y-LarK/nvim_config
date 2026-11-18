@@ -187,7 +187,10 @@ map("n", "<leader>cX", function()
         vim.log.levels.INFO
     )
 end, { desc = "CMake 清理状态（保留运行时文件）" })
-map("n", "<leader>ck", "<cmd>CMakeStop<cr>", { desc = "停止当前任务" })
+-- 停止：runner = 运行中的程序，executor = 构建/生成任务，插件拆成两条独立命令
+-- （`:CMakeStop` 并不存在，会被这两个命令前缀匹配成 E464 歧义）
+map("n", "<leader>ck", "<cmd>CMakeStopRunner<cr>", { desc = "停止运行中的程序" })
+map("n", "<leader>cK", "<cmd>CMakeStopExecutor<cr>", { desc = "停止构建/生成任务" })
 
 -- 平滑滚动快捷键 (Neoscroll)
 -- 使用插件默认的函数来实现平滑翻页
