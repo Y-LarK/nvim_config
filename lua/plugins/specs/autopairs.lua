@@ -12,6 +12,10 @@ return {
             cuda = { "string", "comment" }, -- CUDA 同理
         },
         disable_filetype = { "TelescopePrompt", "spectre_panel" },
+        -- 光标夹在一对空括号中间时，默认的退格会把左右两个括号一起删掉
+        -- （实测 `foo(bar(|));` 按一次 BS -> `foo(bar);`）。关闭后退格永远只删
+        -- 光标左侧一个字符，嵌套括号里不会再连带删掉右侧的 ')'。
+        map_bs = false,
         fast_wrap = {
             map = "<M-e>", -- 快捷键 Alt+e，可以将括号快速包裹住后面的词
         },
