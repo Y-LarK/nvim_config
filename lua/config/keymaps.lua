@@ -62,27 +62,11 @@ map("n", "<leader>cg", "<cmd>CMakeGenerate<cr>", { desc = "CMake 生成 (Generat
 map("n", "<leader>cb", "<cmd>CMakeBuild<cr>", { desc = "CMake 构建 (Build)" })
 map("n", "<leader>cr", "<cmd>CMakeRun<cr>", { desc = "运行（首次需选启动目标）" })
 map("n", "<leader>cd", "<cmd>CMakeDebug<cr>", { desc = "CMake 调试 (Debug)" })
--- 选择构建预设（debug/tests/release）：决定整套构建配置，选一次后 <leader>cb 沿用它
-map("n", "<leader>cp", "<cmd>CMakeSelectBuildPreset<cr>", { desc = "选择构建预设 (Build Preset)" })
--- 选择构建目标；临时过滤掉 utility 类（include(CTest) 的 28 个 Dashboard 目标等噪音）
-map("n", "<leader>ct", function()
-    local orig = vim.ui.select
-    vim.ui.select = function(items, opts, on_choice)
-        vim.ui.select = orig -- 先还原，避免影响后续交互
-        local filtered = {}
-        for _, item in ipairs(items) do
-            if not tostring(item):match("%(utility%)$") then
-                filtered[#filtered + 1] = item
-            end
-        end
-        return orig(filtered, opts, on_choice)
-    end
-    local ok, err = pcall(vim.cmd, "CMakeSelectBuildTarget")
-    if not ok then
-        vim.ui.select = orig
-        error(err)
-    end
-end, { desc = "选择构建目标（过滤 utility）" })
+-- 构建预设是唯一入口：每个 preset 已在 CMakePresets.json 里绑定好 targets
+-- （debug / debug-tests / release / release-tests），<leader>cb 会沿用它。
+-- 临时构建单个目标用 :CMakeBuild smart_monitor —— 不要再用 CMakeSelectBuildTarget，
+-- 它把目标存进内存状态并覆盖 preset 的 targets，直到重启 nvim 才清除。
+map("n", "<leader>cp", "<cmd>CMakeSelectBuildPreset<cr>", { desc = "选择构建预设（Debug/Release + 目标）" })
 -- 跑测试：插件内部用 ctest；若先用 CMakeSelectTestPreset 选过 preset，会走 ctest --preset
 map("n", "<leader>cT", "<cmd>CMakeRunTest<cr>", { desc = "CMake 运行测试 (Run Tests)" })
 -- 清理当前构建缓存（cmake-tools 以 nvim 工作目录为项目根；无缓存时它会静默返回，这里补上提示）
