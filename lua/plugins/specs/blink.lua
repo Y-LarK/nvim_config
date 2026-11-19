@@ -228,6 +228,27 @@ return {
                                 end
                             end
 
+                            -- 清空 clangd snippet 占位里预填的内容：${1:typename Tp} -> ${1}
+                            -- clangd 默认 FullPlaceholders 会把形参名/模板参数名整段塞进占位
+                            -- （foo1(int c) / vector<typename _Tp>），接受补全后还得整段覆盖或删掉，
+                            -- 净收益只是「提示这里要填什么」。占位本身留着（仍可 Tab 跳转），
+                            -- 只把预填文本清空，效果等价于 clangd 的
+                            -- Completion.ArgumentLists = Delimiters。
+                            -- 幂等：已经是 ${1} / $0 的候选（clangd 侧已配 Delimiters 时）不受影响。
+                            for _, item in ipairs(items) do
+                                local holder, field
+                                if item.textEdit and item.textEdit.newText then
+                                    holder, field = item.textEdit, "newText"
+                                elseif not item.textEdit and item.insertText then
+                                    holder, field = item, "insertText"
+                                end
+                                if holder then
+                                    -- [^${}]* 而非 [^}]*：不跨过内层占位边界，
+                                    -- 否则 ${1:a<${2:b}>} 会被截成 ${1}, ${3}>} 这类破损文本
+                                    holder[field] = holder[field]:gsub("%${(%d+):[^${}]*}", "${%1}")
+                                end
+                            end
+
                             -- 模板嵌套：clangd 只闭合它自己那一层模板参数，整行里其余
                             -- 未闭合的 '<' 不会被补。判据是「整行配平」，不能只看光标左侧：
                             --   `foo<std::dec|`（行尾）              -> 缺 1 层，补 1

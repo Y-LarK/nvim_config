@@ -83,7 +83,11 @@ return {
                                 "--clang-tidy",
                                 "--header-insertion=iwyu",
                                 "--completion-style=detailed",
-                                "--function-arg-placeholders=1",
+                                -- 不要加 --function-arg-placeholders：这个命令行参数的优先级
+                                -- 高于 ~/.config/clangd/config.yaml，会顶掉那里的
+                                -- Completion.ArgumentLists（实测 FullPlaceholders 盖住
+                                -- Delimiters，补全又变成 foo1(int c) / vector<typename Tp>
+                                -- 那种整段占位）。占位策略统一由 config.yaml 决定。
                             }
                         end
                         local dir = resolve_compile_commands_dir()
