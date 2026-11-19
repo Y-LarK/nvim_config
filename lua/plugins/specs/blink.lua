@@ -1,3 +1,68 @@
+-- 统计光标左侧未闭合的 '<' 个数（col 是 0-based 光标列，取它之前的文本）。
+-- 只做字符级扫描：跳过 << / <=、跳过 "..." 与 '...' 的内容；预处理行由调用处排除。
+-- 用于判断光标是否还处在没写完的模板实参列表里。
+local function openTemplateDepth(line, col)
+    local prefix = line:sub(1, col)
+    local depth = 0
+    local quote = nil
+    local i = 1
+    while i <= #prefix do
+        local c = prefix:sub(i, i)
+        if quote then
+            if c == "\\" then
+                i = i + 1 -- 跳过转义字符
+            elseif c == quote then
+                quote = nil
+            end
+        elseif c == '"' or c == "'" then
+            quote = c
+        elseif c == "<" then
+            local nxt = prefix:sub(i + 1, i + 1)
+            if nxt == "<" or nxt == "=" then
+                i = i + 1 -- 左移 / 小于等于，不是模板起始
+            elseif prefix:sub(i - 1, i - 1):match("[%a_]") then
+                -- 只认紧贴标识符的 '<'（foo< / std::vector<）。比较运算符两侧
+                -- 通常有空格，且 treesitter 对不完整的 foo< 也会退化成
+                -- binary_expression，无法据此区分，只能靠这个启发式。
+                depth = depth + 1
+            end
+        elseif c == ">" then
+            depth = math.max(depth - 1, 0)
+        end
+        i = i + 1
+    end
+    return depth
+end
+
+-- 统计 s 中「模板起始的 '<'」个数（跳过 << / <=、跳过 "..." 与 '...' 的内容）。
+-- 用于衡量 newText 自己带进来几层模板。
+local function templateOpenCount(s)
+    local count = 0
+    local quote = nil
+    local i = 1
+    while i <= #s do
+        local c = s:sub(i, i)
+        if quote then
+            if c == "\\" then
+                i = i + 1
+            elseif c == quote then
+                quote = nil
+            end
+        elseif c == '"' or c == "'" then
+            quote = c
+        elseif c == "<" then
+            local nxt = s:sub(i + 1, i + 1)
+            if nxt == "<" or nxt == "=" then
+                i = i + 1
+            else
+                count = count + 1
+            end
+        end
+        i = i + 1
+    end
+    return count
+end
+
 return {
     {
         "saghen/blink.cmp",
@@ -147,7 +212,10 @@ return {
                             -- 光标右侧已有同一个闭合符时，只插头文件名本身并把范围收到光标处，
                             -- 否则多出的闭合符会与原有的拼成 <map>> / "test.h""；
                             -- 右侧没有闭合符（如刚打到 <map 或 "test.h）则保持原样，照旧补出。
-                            local closing = line:sub(ctx.pos.col + 1, ctx.pos.col + 1)
+                            -- 只对预处理行生效：模板候选的 newText 同样以 '>' 结尾，
+                            -- 若在普通代码行上削掉，嵌套模板会少一个 '>'（实测
+                            -- `foo<|>` 里补 decay_t 就是被这里削成 decay_t<...，少闭合一层）。
+                            local closing = line:match("^%s*#") ~= nil and line:sub(ctx.pos.col + 1, ctx.pos.col + 1) or ""
                             if closing == ">" or closing == '"' then
                                 for _, item in ipairs(items) do
                                     local te = item.textEdit
@@ -155,6 +223,54 @@ return {
                                         te.newText = te.newText:sub(1, -2)
                                         if te.range["end"].character > ctx.pos.col then
                                             te.range["end"].character = ctx.pos.col
+                                        end
+                                    end
+                                end
+                            end
+
+                            -- 模板嵌套：clangd 只闭合它自己那一层模板参数，整行里其余
+                            -- 未闭合的 '<' 不会被补。判据是「整行配平」，不能只看光标左侧：
+                            --   `foo<std::dec|`（行尾）              -> 缺 1 层，补 1
+                            --   `foo<std::de|>`（先写好了 <>）        -> 整行已配平，补 0
+                            --   `pair<vector<|>, T2>`（行尾有 T2>）   -> 整行已配平，补 0
+                            --   `vector<pair<int, |`（行尾）          -> 缺 3 层，补 3
+                            -- need = 整行未闭合 '<' 数 + newText 自带 '<' 数 - newText 末尾 '>' 数
+                            -- 只看光标左侧会漏掉右侧和行尾已有的 '>'，实测把
+                            -- `std::pair<std::vector<|>, typename T2>` 补成
+                            -- `std::pair<std::vector<>>, typename T2>`（多一个 '>'，把 ,T2 挤到括号外）。
+                            -- 公式对补过和没补过的 newText 都成立，天然幂等：transform_items
+                            -- 会被列表刷新和 resolve 重复调用（sources/lib/provider/init.lua:167）。
+                            -- 预处理行必须排除：#include <map| 的 newText 自带 '>',再补成 <map>>。
+                            local line_open = line:match("^%s*#") == nil and openTemplateDepth(line, #line) or 0
+                            if line_open > 0 then
+                                for _, item in ipairs(items) do
+                                    local te = item.textEdit
+                                    -- 有 textEdit 就改 newText；clangd 的 AllScopes 候选
+                                    -- 可能只给 insertText（此时 blink 要到 accept 阶段才
+                                    -- guess 出替换范围），退回到 insertText 处理。
+                                    local holder, field
+                                    if te and te.newText then
+                                        holder, field = te, "newText"
+                                    elseif not te and item.insertText then
+                                        holder, field = item, "insertText"
+                                    end
+                                    if holder then
+                                        local text = holder[field]
+                                        -- 末尾 snippet 占位 $0 / ${0} 要留在最后
+                                        local core, tail = text, ""
+                                        local stripped = text:match("^(.*)%$0$")
+                                        if stripped then
+                                            core, tail = stripped, "$0"
+                                        else
+                                            stripped = text:match("^(.*)%${0}$")
+                                            if stripped then
+                                                core, tail = stripped, "${0}"
+                                            end
+                                        end
+                                        local have = #core - #(core:gsub(">+$", ""))
+                                        local need = line_open + templateOpenCount(core) - have
+                                        if need > 0 then
+                                            holder[field] = core .. string.rep(">", need) .. tail
                                         end
                                     end
                                 end
